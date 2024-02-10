@@ -2,7 +2,7 @@
 
 latest_species_commits <- function(n = 100, species = TRUE){
   token <- readLines("/home/frousseu/.ssh/github_token")
-  githubapi <- paste0("https://frousseu:",token,"@api.github.com/repos/frousseu/floreduquebecsp/commits")
+  githubapi <- paste0("https://frousseu:",token,"@api.github.com/repos/flore-quebec/species/commits")
   x <- fromJSON(paste0(githubapi,"?per_page=",n,"&files=true"))
   sha <- x$sha
   l <- lapply(sha, function(i){
@@ -36,7 +36,7 @@ latest_species_commits <- function(n = 100, species = TRUE){
 get_species_photos <- function(paths){
   res <- lapply(paths,function(s){
       print(s)
-      url <- file.path("https://raw.githubusercontent.com/frousseu/floreduquebecsp/main",s)
+      url <- file.path("https://raw.githubusercontent.com/flore-quebec/species/main",s)
       x <- readLines(url)
       beg <- match("<!--", x)
       end <- match("-->", x)
@@ -79,7 +79,7 @@ get_species_photos <- function(paths){
 
 species_paths <- function(){
   token <- readLines("/home/frousseu/.ssh/github_token")
-  url <- paste0("https://frousseu:",token,"@api.github.com/repos/frousseu/floreduquebecqc/git/trees/main?recursive=1")
+  url <- paste0("https://frousseu:",token,"@api.github.com/repos/flore-quebec/species/git/trees/main?recursive=1")
   x <- fromJSON(url)
   x <- x$tree$path
   x[grep("_",x)]
@@ -104,6 +104,37 @@ make_species_files <- function(){
   })
 }
 #make_species_files()
+
+#x <- commits
+
+list_contributions <- function(x){
+  w <- which(x$author == x$login)
+  replace <- sapply(w, function(i){
+    a <- unique(x$author[which(x$login == x$author[i])])
+    a[which(a != x$author[i])[1]]
+  })
+  x$name <- x$author
+  x$name[w] <- replace
+  x <- x[x$date > "2024-01-28T18:17:06Z", ] # removes the init files
+  g<-grep("Merge pull request", x$message)
+  if(any(g)){
+    x <- x[-g, ]
+  }
+  l <- lapply(split(x, x$file), function(i){
+    res <- unique(i$name) # matches login first cause author can change
+    if(length(res) == 1){
+      paste0("Initié par ",res,".")
+    } else {
+      paste0(paste("Initié par", res[1]), paste(" et modifié par", paste(res[-1], collapse=", ") ),".")
+    }
+  })
+  names(l) <- basename(names(l)) |> gsub("_", " ", x = _) |> gsub(".md", "", x = _)
+  data.frame(species = names(l), contribution = unname(unlist(l)))
+}
+
+
+
+
 
 
 

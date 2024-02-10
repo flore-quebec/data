@@ -314,13 +314,25 @@ random_photos <- random_photos[!is.na(when), ]
 random_photos$species <- d$species[match(random_photos$idtaxa,d$idtaxa)]
 
 
-commits <- latest_species_commits(10, species = TRUE)
-selected_photos <- get_species_photos(commits)
+commits <- latest_species_commits(10, species = FALSE)
+species_modified <- unique(commits$file)
+selected_photos <- get_species_photos(species_modified)
 setDT(selected_photos)
 #fwrite(selected_photos, "selected_photos.csv")
 sphotos <- fread("selected_photos.csv")
 selected_photos <- unique(rbind(selected_photos, sphotos), by = c("species", "rank"))
 fwrite(selected_photos, "selected_photos.csv", append = FALSE)
+
+
+#fwrite(commits, "commits.csv", append = FALSE)
+setDT(commits)
+old_commits <- fread("commits.csv", colClasses = "character") # bug with date formats
+nums <- c("additions","deletions","changes")
+old_commits[, (nums) := lapply(.SD, as.integer), .SDcols = nums]
+commits <- rbind(commits, old_commits)
+commits <- unique(commits)#, by = c("sha", "file"))
+commits <- commits[order(file, date), ]
+fwrite(commits, "commits.csv", append = FALSE)
 
 
 selected_photos<-fread("selected_photos.csv")
@@ -335,9 +347,9 @@ photos <- split(photos, photos$species) |>
 
 
 
-
-
-
+contrib <- list_contributions(commits)
+setDT(contrib)
+d <- merge(d, contrib, all.x = TRUE)
 
 
 
@@ -387,8 +399,8 @@ pics <- split(photos, photos$species) #|>
 image_array<-function(){
   #cat("/014")
   l<-sapply(pics,function(i){
-    tags<-c("src","alt","famille","genre","espèce","fna","inat","vascan","gbif","powo","herbierqc","class","ordre","nobs","vernaculaire","vernacularFRalt","vernacularEN","botanic","alternatif","status","protection","taxonomic_order","LOIEMV","COSEWIC","SARASTATUS","GRANK","NRANK","SRANK")
-    tagnames<-c("url","species","family","genus","species","fna","inat","vascan","gbif","powo","herbierqc","class","order","nobs","vernacularFR","vernacularFRalt","vernacularEN","botanic","alternatif","Québec","protection","taxonomic_order","LOIEMV","COSEWIC","SARASTATUS","GRANK","NRANK","SRANK")
+    tags<-c("src","alt","famille","genre","espèce","fna","inat","vascan","gbif","powo","herbierqc","class","ordre","nobs","vernaculaire","vernacularFRalt","vernacularEN","botanic","alternatif","status","protection","taxonomic_order","LOIEMV","COSEWIC","SARASTATUS","GRANK","NRANK","SRANK","contribution")
+    tagnames<-c("url","species","family","genus","species","fna","inat","vascan","gbif","powo","herbierqc","class","order","nobs","vernacularFR","vernacularFRalt","vernacularEN","botanic","alternatif","Québec","protection","taxonomic_order","LOIEMV","COSEWIC","SARASTATUS","GRANK","NRANK","SRANK","contribution")
     info<-unlist(as.vector(i[1,..tagnames]))
     info<-unname(sapply(info,function(x){paste0("\"",x,"\"")}))
     #w<-which(photos$species==i$species[1])
