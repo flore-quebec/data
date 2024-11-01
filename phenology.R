@@ -10,7 +10,7 @@ library(berryFunctions)
 
 
 ###
-gbif<-fread("/home/frousseu/Documents/Github/floreqc/gbif/0021817-231002084531237.csv")
+gbif<-fread("/home/frousseu/Documents/github/flore.quebec/data/gbif/0039190-240321170329656.csv")
 gbif[,date:=eventDate]
 gbif[,jul:=as.integer(format(as.Date(date),"%j"))]
 gbif[,year:=substr(date,1,4)]
@@ -68,7 +68,7 @@ for(i in sp){
   #h<-lapply(h,"[",c(5:25))
   labs<-gsub("\\.","",format(as.Date(h$mids,origin="1970-01-01"),"%b"))
 
-  path<-paste0("/home/frousseu/Documents/Github/floreqc/images/",gsub(" ","_",i),"_pheno.png")
+  path<-paste0("/home/frousseu/Documents/github/flore.quebec/data/images/",gsub(" ","_",i),"_pheno.png")
   png(path,units="cm",width=9,height=6,res=300)
   par(mar=c(3,2,3,0.5),bg="white")
 
@@ -77,7 +77,7 @@ for(i in sp){
   abline(h=pretty(c(h$counts,5)),lty=3,col="grey80")
   invisible(lapply(seq_along(h$counts),function(i){
     offset<-0.75
-    roundedRect(xleft=brks[i]+offset,xright=brks[i+1]-offset,ybottom=0,ytop=h$counts[i],col="forestgreen",border=NA,corners=c(2,3),rounding=0.0,bothsame=FALSE,devcorrect=TRUE)
+    roundedRect(xleft=brks[i]+offset,xright=brks[i+1]-offset,ybottom=0,ytop=h$counts[i],col="#3FA34D",border=NA,corners=c(2,3),rounding=0.0,bothsame=FALSE,devcorrect=TRUE)
   }))
   alongx<-pheno$x
   alongy<-(pheno$y/max(pheno$y))*max(c(h$counts,5))
@@ -96,7 +96,7 @@ for(i in sp){
   axis(1,at=monthlims,labels=rep("",length(monthlims)),tcl=-0.7,lwd=0,lwd.ticks=1.0,col.ticks="grey80",xpd=TRUE)
   mtext(side=2,line=1,font=2,text="Nb d'observations",cex=0.75)
   axis(2,at=pretty(c(h$counts,5))[-1],mgp=c(2,0.05,0),tcl=0,las=2,col="grey50",cex.axis=0.5,lwd=0)
-  legend("top",legend=c("Observations","Toutes les espèces"),ncol=2,pch=22,pt.cex=1.25,col=c("forestgreen",adjustcolor("darkgreen",0.35)),pt.bg=c("forestgreen",adjustcolor("darkgreen",0.15)),cex=0.65,bty="n",inset=c(0.05,-0.20),xpd=TRUE,pt.lwd=1.25)
+  legend("top",legend=c("Observations","Toutes les espèces"),ncol=2,pch=22,pt.cex=1.25,col=c("#3FA34D",adjustcolor("darkgreen",0.35)),pt.bg=c("#3FA34D",adjustcolor("darkgreen",0.15)),cex=0.65,bty="n",inset=c(0.05,-0.20),xpd=TRUE,pt.lwd=1.25)
 
   dev.off()
   image_read(path) |> image_trim() |> image_border("10x10",color="white") |> image_write(path)

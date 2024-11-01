@@ -19,7 +19,7 @@ library(sf)
 
 source("/home/frousseu/Documents/github/flore.quebec/data/functions.R")
 
-gbif<-fread("/home/frousseu/Documents/github/flore.quebec/data/gbif/0021817-231002084531237.csv")
+gbif<-fread("/home/frousseu/Documents/github/flore.quebec/data/gbif/0039190-240321170329656.csv")
 
 lf<-list.files("/home/frousseu/Documents/github/flore.quebec/data/vascan",full=TRUE,pattern=".txt")
 
@@ -77,6 +77,21 @@ taxon2[species == "Koeleria spicata",.(species, species_alt, nbobs)]
 
 
 d<-d[taxon2,on="taxonID",species_alt:=i.species_alt]
+
+### add sections
+ma <- match(d$taxonID, taxon$taxonID)
+section <- sapply(strsplit(taxon$higherClassification[ma], ";"), function(i){
+  g <- grep(" sect\\. ", i)
+  if(any(g)){
+    sapply(strsplit(i[g]," "), "[", 3)
+  }else{
+    NA
+  }
+})
+d$section <- section
+
+
+
 
 #d2<-merge(d,taxon2,all.x=TRUE)
 

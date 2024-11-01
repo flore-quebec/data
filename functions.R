@@ -3,7 +3,7 @@
 latest_species_commits <- function(n = 100, species = TRUE){
   token <- readLines("/home/frousseu/.ssh/github_token")
   githubapi <- paste0("https://frousseu:",token,"@api.github.com/repos/flore-quebec/species/commits")
-  x <- fromJSON(paste0(githubapi,"?per_page=",n,"&files=true"))
+  x <- fromJSON(paste0(githubapi,"?path=Esp%C3%A8ces&per_page=",n,"&files=true"))
   sha <- x$sha
   l <- lapply(sha, function(i){
     print(i)
@@ -16,8 +16,18 @@ latest_species_commits <- function(n = 100, species = TRUE){
     login <- x$author$login
     date <- x$commit$author$date
     message <- x$commit$message
-    #x$files$patch
-    res <- data.frame(sha = i, file = file, author = author, login = login, date = date, message = message)
+    name <- author
+    
+    w <- which(author == login)
+    if(any(w)){
+      replace <- sapply(w, function(i){
+        a <- unique(author[which(login == author[i])])
+        a[which(a != author[i])[1]]
+      })
+      name[w] <- replace
+    }
+    ### with too few commits the name cannot be inferred with the author
+    res <- data.frame(sha = i, file = file, author = author, login = login, name = name, date = date, message = message)
     res <- cbind(res, x$files[,c("additions","deletions","changes")])
     res
   })
@@ -183,6 +193,8 @@ get_random_photos<-function(id,license=c("cc0","cc-by","cc-by-nc"),iders=NULL,pl
   pics<-pics[which(pics$width>205 & pics$height>205),]
   pics
 }
+
+
 
 
 
