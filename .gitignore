@@ -1,0 +1,7 @@
+# Ignore everything
+*
+# But don't ignore .gitignore
+!.gitignore
+
+# Don't ignore .R files
+!*.R
