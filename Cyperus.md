@@ -47,7 +47,7 @@ Cyperus dentatus
 8'. Bractée la plus longue horizontale ou réfléchie; marges des écailles retenant fortement les akènes;
 épillets en éventail au sommet ou aux embranchements des tiges; épillets à 3-7 écailles < 2,5 mm
 (anc. faussement nommé C. filiculmis)
-Cyperus lupulinus subsp. macilentus
+Cyperus lupulinus
 
 5'. Épillets disposés sur un rachis évident portant des ailes hyalines 9
 
@@ -66,7 +66,7 @@ Cyperus erythrorhizos
 
 11. Épillets espacés; écailles dorées pâles persistantes (ne tombant qu’avec le rachis); rhizomes allongés portant
 des tubercules de 6-11 mm de diamètre et contenant de l'amidon; feuilles carénées (en V); fréquente
-souchet hispide Cyperus esculentus var. leptostachyus
+souchet hispide Cyperus esculentus
 
 11'. Épillets très denses; écailles dorées et vertes, ± décidues (tombent séparément); rhizomes de moins de 5 cm
 sans tubercule; base de la tige gonflée formant un corme; feuilles planes; fréquente
