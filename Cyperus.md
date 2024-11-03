@@ -1,7 +1,7 @@
 1. Petites plantes toutes annuelles à racines fibreuses (généralement moins de 15 cm) 2
 
 2. Écailles à sommet aristé et recourbé vers l’extérieur, à bords vert foncé et au centre vert-pâle; feuilles planes;
-styles trifides (anc. C. inflexus ou C. aristatus)
+styles trifides (anc. _C. inflexus_ ou *C. aristatus*)
 souchet courbé Cyperus squarrosus
 
 2'. Écailles non aristées, tachetées de marron et sans nervure 3
@@ -10,14 +10,14 @@ souchet courbé Cyperus squarrosus
 
 4. Feuilles et bractées carénées (en V), longues de 1-8 cm; écailles lustrées, à bord abaxial vert foncé, milieu vert
 pâle et partie adaxiale rouge-brun, à peine dépassées par les styles; styles se séparant en deux dans le tiers du
-haut et peu saillants (anc. Cyperus rivularis)
+haut et peu saillants (anc. __Cyperus rivularis__)
 Cyperus bipartitus
 
 4'. Feuilles et bractées planes, longues de 5-20 cm; écailles mates, à bandes marginales marron et à centre vert
 pâle, longuement dépassées par les styles; styles se séparant en deux dans le tiers du bas
 Cyperus diandrus
 
-3'. Écailles étroites brun foncé; ressemble à C.bipartitus sauf : épis plus longs et plus étroits (30 épillets);
+3'. Écailles étroites brun foncé; ressemble à **C.bipartitus** sauf : épis plus longs et plus étroits (30 épillets);
 styles trifides non saillants; introduit, mais rare : (Pointe-aux-Trembles, Oka, Saint-Lambert)
 Cyperus fuscus
 
