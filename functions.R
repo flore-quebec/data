@@ -121,13 +121,15 @@ make_species_files <- function(){
 #x <- commits
 
 list_contributions <- function(x){
-  w <- which(x$author == x$login)
-  replace <- sapply(w, function(i){
-    a <- unique(x$author[which(x$login == x$author[i])])
-    a[which(a != x$author[i])[1]]
-  })
   x$name <- x$author
-  x$name[w] <- replace
+  w <- which(x$author == x$login)
+  if(any(w)){
+    replace <- sapply(w, function(i){
+      a <- unique(x$author[which(x$login == x$author[i])])
+      a[which(a != x$author[i])[1]]
+    })
+    x$name[w] <- replace
+  }
   x <- x[x$date > "2024-01-28T18:17:06Z", ] # removes the init files
   g<-grep("Merge pull request", x$message)
   if(any(g)){
@@ -135,15 +137,20 @@ list_contributions <- function(x){
   }
   l <- lapply(split(x, x$file), function(i){
     res <- unique(i$name) # matches login first cause author can change
+    initiated <- res[1]
     if(length(res) == 1){
-      paste0("Initié par ",res,".")
+      contribution <- paste0("Initié par ",res,".")
+      edited <- ""
     } else {
-      paste0(paste("Initié par", res[1]), paste(" et modifié par", paste(res[-1], collapse=", ") ),".")
+      contribution <- paste0(paste("Initié par", res[1]), paste(" et modifié par", paste(res[-1], collapse=", ") ),".")
+      edited <- paste(res[-1], collapse=", ")
     }
+    data.frame(contribution = contribution, initiated = initiated, edited = edited)
   })
   names(l) <- basename(names(l)) |> gsub("_", " ", x = _) |> gsub(".md", "", x = _)
-  data.frame(species = names(l), contribution = unname(unlist(l)))
+  data.frame(species = names(l), do.call("rbind", l))
 }
+
 
 # returns a vector of inat ids
 translate2inat <- function(sp){ # make sure order returned corresponds to sp order

@@ -143,16 +143,21 @@ lc <- lapply(lc, function(i){
 image_array<-function(){
   #cat("/014")
   l<-sapply(pics,function(i){
-    tags<-c("src","alt","famille","genre","section","espèce","fna","inat","vascan","gbif","powo","herbierqc","class","ordre","nobs","vernaculaire","vernacularFRalt","vernacularEN","botanic","alternatif","status","protection","taxonomic_order","LOIEMV","COSEWIC","SARASTATUS","GRANK","NRANK","SRANK","contribution","date")
-    tagnames<-c("url","species","family","genus","section","species","fna","inat","vascan","gbif","powo","herbierqc","class","order","nobs","vernacularFR","vernacularFRalt","vernacularEN","botanic","alternatif","Québec","protection","taxonomic_order","LOIEMV","COSEWIC","SARASTATUS","GRANK","NRANK","SRANK","contribution","date")
+    tags<-c("src","alt","famille","genre","section","espèce","fna","inat","vascan","gbif","powo","herbierqc","class","ordre","nobs","vernaculaire","vernacularFRalt","vernacularEN","botanic","alternatif","status","protection","taxonomic_order","LOIEMV","COSEWIC","SARASTATUS","GRANK","NRANK","SRANK","contribution","date","initiated")
+    tagnames<-c("url","species","family","genus","section","species","fna","inat","vascan","gbif","powo","herbierqc","class","order","nobs","vernacularFR","vernacularFRalt","vernacularEN","botanic","alternatif","Québec","protection","taxonomic_order","LOIEMV","COSEWIC","SARASTATUS","GRANK","NRANK","SRANK","contribution","date","initiated")
     info<-unlist(as.vector(i[1,..tagnames]))
     info<-unname(sapply(info,function(x){paste0("\"",x,"\"")}))
-    #w<-which(photos$species==i$species[1])
+
     urls<-i$url[1:8]
     urls<-paste0("[ \"",paste(urls,collapse="\", \""),"\" ]")
     tags<-c(tags,"images")
     info<-c(info,urls)
     
+    editors <- strsplit(i$edited, ", ")[[1]]
+    editors <- paste0("[ \"", paste(editors, collapse = "\", \""), "\" ]")
+    tags <- c(tags, "edited")
+    info <- c(info, editors)
+
     urls<-i$attribution[1:8]
     ww<-which(urls=="no rights reserved")
     if(any(ww)){
@@ -169,8 +174,7 @@ image_array<-function(){
     urls<-paste0("[ \"",paste(urls,collapse="\", \""),"\" ]")
     tags<-c(tags,"link")
     info<-c(info,urls)
-    
-    
+
     arr<-paste("{",paste0(paste0(tags,": ",info),collapse=", "),"},",collapse="")
     #arr<-gsub("/"{","{",arr)
     #arr<-gsub("}/"","}",arr)
