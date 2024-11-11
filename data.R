@@ -56,7 +56,6 @@ d[,taxonID:=as.integer(basename(URL))]
 # d<-d[taxon,on="taxonID", nomatch=NULL]
 d <- merge(d, taxon, all.x = TRUE)
 
-
 taxon2<-taxon[taxonRank=="species" & taxonomicStatus=="synonym",]
 taxon2[,taxonID:=as.integer(acceptedNameUsageID)]
 taxon2[,species:=sapply(strsplit(acceptedNameUsage," "),function(i){paste(i[1:2],collapse=" ")})]
@@ -102,6 +101,20 @@ d<-merge(d,distribution,all.x=TRUE,by="taxonID")
 #d<-d[vernacular,,on="taxonID", nomatch=NA]
 d<-merge(d,vernacular,all.x=TRUE,by="taxonID")
 
+
+### add plant type
+desc <- fread("/home/frousseu/Documents/github/flore.quebec/data/vascan/description.txt")
+d <- merge(d, desc, all.x = TRUE)
+d$type <- d$description
+d$type <- gsub("herb", "herbe", d$type)
+d$type <- gsub("vine", "vigne", d$type)
+d$type <- gsub("tree", "arbre", d$type)
+d$type <- gsub("shrub", "arbuste", d$type)
+d$type <- ifelse(d$order %in% "Lycopodiales", "lycopode", d$type)
+d$type <- ifelse(d$order %in% "Equisetales", "prêle", d$type)
+d$type <- ifelse(d$order %in% c("Ophioglossales", "Osmundales", "Polypodiales", "Schizaeales"), "fougère", d$type)
+d$type[d$type == ""] <- "herbe"
+d$type <- gsub(",", ", ", d$type)
 
 #i<-"Equisetum pratense"
 #x<-fromJSON(paste0("https://api.inaturalist.org/v1/taxa?q=/"",gsub(" ","%20",i),"/""))$results$id[1]

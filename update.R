@@ -157,6 +157,11 @@ image_array<-function(){
     editors <- paste0("[ \"", paste(editors, collapse = "\", \""), "\" ]")
     tags <- c(tags, "edited")
     info <- c(info, editors)
+    
+    types <- strsplit(i$type, ", ")[[1]]
+    types <- paste0("[ \"", paste(types, collapse = "\", \""), "\" ]")
+    tags <- c(tags, "type")
+    info <- c(info, types)
 
     urls<-i$attribution[1:8]
     ww<-which(urls=="no rights reserved")
