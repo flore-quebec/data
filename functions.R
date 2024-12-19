@@ -1,10 +1,13 @@
 
+token <- readLines("/home/frousseu/.ssh/github_token")
+remsha <- c("0fe221835f4c22857bb9443434bdaedef7fb6584", "3cda8bf851afdde774cea6b32ae8d0f07a262953")
 
 latest_species_commits <- function(n = 100, species = TRUE){
   token <- readLines("/home/frousseu/.ssh/github_token")
   githubapi <- paste0("https://frousseu:",token,"@api.github.com/repos/flore-quebec/species/commits")
   x <- fromJSON(paste0(githubapi,"?path=Esp%C3%A8ces&per_page=",n,"&files=true"))
   sha <- x$sha
+  #get_all_local_commits(file)
   l <- lapply(sha, function(i){
     print(i)
     x <- fromJSON(file.path(githubapi,i))
@@ -41,7 +44,125 @@ latest_species_commits <- function(n = 100, species = TRUE){
     x
   }
 }
-# sps <- latest_species_commits(10)
+# sps <- latest_species_commits(10, species = TRUE)
+
+get_sha <- function(sha, token){
+  #sha <- sha[!sha %in% remsha]
+  githubapi <- paste0("https://frousseu:",token,"@api.github.com/repos/flore-quebec/species/commits")
+  l <- lapply(sha, function(i){
+    print(i)
+    req<-GET(file.path(githubapi,i), add_headers("link")) # get nb of pages
+    header <- req$all_headers[[1]]$headers$link
+    if(!is.null(header)){
+      pn <- gregexpr("page=([0-9]+)", header) |>
+        regmatches(header, m = _) |>
+        _[[1]] |>
+        sub("page=", "", x = _) |>
+        as.integer()
+    } else {
+      pn <- 1
+    }
+    lx <- lapply(1:max(pn), function(j){ # page through pages
+      x <- fromJSON(file.path(githubapi,paste0(i, "?page=", j)))
+      file <- x$files$filename
+      if(is.null(file)){
+        return(NULL)
+      }
+      author <- x$commit$author$name
+      login <- x$author$login
+      date <- x$commit$author$date
+      message <- x$commit$message
+      name <- author
+      w <- which(author == login)
+      if(any(w)){
+        replace <- sapply(w, function(i){
+          a <- unique(author[which(login == author[i])])
+          a[which(a != author[i])[1]]
+        })
+        name[w] <- replace
+      }
+      ### with too few commits the name cannot be inferred with the author
+      res <- data.frame(sha = i, file = file, author = author, login = login, name = name, date = date, message = message)
+      res <- cbind(res, x$files[,c("additions","deletions","changes")])
+      res
+    })
+    res <- do.call("rbind", lx)
+    res
+  })
+  x <- do.call("rbind", l)
+  x
+}
+
+#co <- get_sha(sha = sha, token = token)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#spfiles <- latest_species_commits(10, species = TRUE)
+#ll <- lapply(spfiles, get_all_local_commits)
+#ll <- ll[sapply(ll, length) > 0] |> unlist() |> unique()
+
+
+#token <- readLines("/home/frousseu/.ssh/github_token")
+#githubapi <- paste0("https://frousseu:",token,"@api.github.com/repos/flore-quebec/species/commits")
+#x <- fromJSON(paste0(githubapi,"?path=Esp%C3%A8ces&per_page=",n,"&files=true"))
+#sha <- x$sha
+
+#n <- 20
+#githubapi <- paste0("https://frousseu:",token,"@api.github.com/repos/flore-quebec/species/commits?path=Esp%C3%A8ces/Acanthaceae/Justicia/Test_test2.md&per_page=",n,"&files=true&rename_history=true")
+#x <- fromJSON(githubapi)
+#x$sha
+
+# git log --pretty=oneline --follow Esp%C3%A8ces/Acanthaceae/Justicia/Test_test.md
+
+#https://github.com/flore-quebec/species/commits/41d1aef989a87e0d8db884b523581c6df58772c1/Esp%C3%A8ces/Acanthaceae/Justicia/Test_test.md?browsing_rename_history=true&new_path=Esp%C3%A8ces/Acanthaceae/Justicia/Test_test2.md&original_branch=main
+
+
+
+get_all_local_commits <- function(file){
+  #out <- system(sprintf("git log --pretty=oneline --name-status --follow %s", file), intern = TRUE)
+  out <- system(sprintf("git log --pretty=oneline --follow %s", file), intern = TRUE)
+  strsplit(out, " ") |>
+    sapply("[", 1)
+}
+#file <- "Espèces/Acanthaceae/Justicia/Test_test2.md"
+#lf <- list.files("Espèces", pattern = ".md", full = TRUE, recursive = TRUE)
+#lc <- lapply(lf, function(i){
+  #print(i)
+#  get_all_local_commits(i)
+#}) |> unlist() |> unique()
+
+#co <- get_sha(sha = lc, token = token)
+
+
+#sha <- get_all_local_commits(file)
+
+#old_commits <- fread("/home/frousseu/Documents/github/flore.quebec/data/commits.csv", colClasses = "character") # bug with date formats
+#nums <- c("additions","deletions","changes")
+#old_commits[, (nums) := lapply(.SD, as.integer), .SDcols = nums]
+
+
+#out <- system(sprintf("git log --pretty=oneline --name-status --follow %s", file), intern = TRUE)
+#strsplit(out, "\t") |>
+#  sapply("[", 1)
+
+
+
+
 
 
 
@@ -131,7 +252,7 @@ list_contributions <- function(x){
     x$name[w] <- replace
   }
   x <- x[x$date > "2024-01-28T18:17:06Z", ] # removes the init files
-  g<-grep("Merge pull request", x$message)
+  g <- grep("Merge pull request|Merge branch", x$message)
   if(any(g)){
     x <- x[-g, ]
   }
@@ -155,7 +276,8 @@ list_contributions <- function(x){
 # returns a vector of inat ids
 translate2inat <- function(sp){ # make sure order returned corresponds to sp order
   lsp<-split(sp,ceiling(seq_along(sp)/200))
-  unlist(lapply(lsp,function(i){
+  unlist(lapply(seq_along(lsp),function(j){
+    i <- lsp[[j]]
     api<-paste0("http://resolver.globalnames.org/name_resolvers.json?names=",paste(gsub(" ","+",i),collapse="|"),"&data_source_ids=147|180")
     req<-GET(api)
     json<-content(req,as="text")
@@ -171,6 +293,34 @@ translate2inat <- function(sp){ # make sure order returned corresponds to sp ord
     ifelse(is.na(id), NA, paste0("https://www.inaturalist.org/taxa/",id))
   }))
 }
+
+
+
+#api <- "https://verifier.globalnames.org/api/v1/verifications/Mutarda%20nigra|Carex%20lurida?data_sources=147%7C180&all_matches=true&capitalize=false&species_group=false&fuzzy_uninomial=false&stats=false&main_taxon_threshold=0.5"
+
+# returns a vector of inat ids
+translate2inat2 <- function(sp){ # make sure order returned corresponds to sp order
+  lsp<-split(sp,ceiling(seq_along(sp)/200))
+  unlist(lapply(seq_along(lsp),function(j){
+    #print(j)
+    i <- lsp[[j]]
+    api<-paste0("https://verifier.globalnames.org/api/v1/verifications/",paste(gsub(" ","%20",i),collapse="|"),"?data_sources=147%7C180%7C167&all_matches=true&capitalize=false&species_group=false&fuzzy_uninomial=false&stats=false&main_taxon_threshold=0.5")
+    req<-GET(api)
+    json<-content(req,as="text", encoding = "UTF-8")
+    x<-fromJSON(json)$names$results
+    inatid<-sapply(x,function(j){
+      ma<-match("iNaturalist",j$dataSourceTitleShort)
+      if(is.na(ma)){
+        NA
+      }else{
+        j$recordId[ma]
+      }
+    })
+    ifelse(is.na(inatid), NA, paste0("https://www.inaturalist.org/taxa/",inatid))
+  }))
+}
+
+
 
 
 get_random_photos<-function(id,license=c("cc0","cc-by","cc-by-nc"),iders=NULL,place=TRUE){
@@ -221,6 +371,29 @@ get_random_photos<-function(id,license=c("cc0","cc-by","cc-by-nc"),iders=NULL,pl
 # }
 #
 # count_letters_changed(x$files$patch)
+
+# GitHub API base URL
+#github_api_url <- "https://api.github.com"
+
+# Define your repository, file, and owner
+#owner <- "flore-quebec"  # GitHub username or organization
+#repo <- "species"  # Repository name
+#file_path <- file  # Path to the file within the repository
+
+# GitHub personal access token (optional, but recommended for rate limiting)
+#token <- "your_personal_access_token"  # Optional, if you want to use token for higher rate limits
+
+# Construct the API URL for the commit history of the file
+#url <- sprintf("%s/repos/%s/%s/commits?path=%s", github_api_url, owner, repo, file_path)
+#url <- "https://frousseu:secret@api.github.com/repos/flore-quebec/species/commits?path=Esp%C3%A8ces&per_page=300&files=true"
+# If you have a token, use it in the request for authentication
+#response <- GET(url, add_headers(Authorization = paste("token", token)))
+
+#strsplit(out[seq(1, length(out), by = 2)], " ", fixed = FALSE)[[1]]
+#paste(out[seq(1, length(out), by = 2)], out[seq(2, length(out), by = 2)], sep = "\t") |>
+#  strsplit("\t")
+
+
 
 
 

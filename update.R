@@ -14,13 +14,25 @@ random_photos <- random_photos[!is.na(when), ]
 random_photos$species <- d$species[match(random_photos$idtaxa,d$idtaxa)]
 
 
-commits <- latest_species_commits(10, species = FALSE)
+commits <- latest_species_commits(100, species = FALSE)
 w <- which(commits$login == "Sckende")
 if(any(w)){
   commits$login[w] <- "frousseu"
   commits$author[w] <- "François Rousseu"
   commits$name[w] <- "François Rousseu"
 }
+
+w <- which(commits$login == "MarcAureleVallee") # temp for marc aurèle
+if(any(w)){
+  commits$login[w] <- "MarcAureleVallee"
+  commits$author[w] <- "Marc-Aurèle Vallée"
+  commits$name[w] <- "Marc-Aurèle Vallée"
+}
+
+
+
+commits <- commits[!commits$file %in% c("Espèces/Acanthaceae/Justicia/Test_test.md", "Espèces/Acanthaceae/Justicia/Test_test2.md"), ]
+commits <- commits[grepl("Espèces/", commits$file), ]
 
 species_modified <- unique(commits$file)
 selected_photos <- get_species_photos(species_modified)
@@ -72,6 +84,7 @@ d[ , date := ifelse(!is.na(latest), latest, d$date)]
 #photos<-merge(photos,d,by.x="idtaxa",by.y="idtaxa",all.x=TRUE)
 
 table(duplicated(d$idtaxa))
+d[ duplicated(d$idtaxa), ]
 
 #d <- d[!is.na(idtaxa), ] # ???????????? Why!!!!!
 photos <- merge(photos, d, by.x = "species", by.y = "species", all = TRUE) # Also keep what does not have photo !!!!!!
@@ -87,15 +100,33 @@ pics <- split(photos, photos$species) #|>
 ############################################
 ### Compute contributor contributions
 x <- commits[date > "2024-01-28T18:17:06Z", ]
+g <- grep("Merge branch", x$message)
+if(any(g)){ # do not count merge branch for commits, but count merge pull requests
+  y <- x[-g, ]
+} else {
+  y <- x
+}
+g <- grep("Merge pull request|Merge branch", x$message)
+if(any(g)){ # do not count merges for changes or species contributions
+  z <- x[-g, ]
+} else {
+  z <- x
+}
+
 xl <- list(
   # nb de changements 
-  x[ , .(nbchanges = sum(changes)), by = .(login)], 
+  z[ , .(nbchanges = sum(changes)), by = .(login)], 
   # nb de commits
-  x[ , .(nbcommits = .N), by = .(login)], 
+  y[ , .(nbcommits = .N), by = .(login)], 
   # nb d'espèces initiées
-  unique(x, by = c("species"))[ , .(nbspinitiated = .N), by = .(login)], 
+  unique(z, by = c("species"))[ , .(nbspinitiated = .N), by = .(login)], 
   # nb d'espèces modifiées
-  unique(x[duplicated(x, by = c("species")), ], , by = c("login", "species"))[ , .(nbspmodified = .N), by = .(login)] 
+  #unique(z[duplicated(z, by = c("species")), ] , by = c("login", "species"))[ , .(nbspmodified = .N), by = .(login)], 
+  z |>
+    unique(by = c("login", "species")) |>
+    _[order(species, date), ] |>
+    _[duplicated(species), ] |>
+    _[ , .(nbspmodified = .N), by = .(login)] 
 )
 x <- Reduce(function(df1, df2) merge(df1, df2, by = "login", all = TRUE), xl)
 x[is.na(x)] <- 0

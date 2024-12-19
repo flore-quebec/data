@@ -17,24 +17,98 @@ library(sf)
 ### VASCAN request when updatingS
 # https://data.canadensys.net/vascan/checklist?lang=fr&habit=all&taxon=0&combination=anyof&province=QC&status=native&status=introduced&status=ephemeral&rank=class&rank=order&rank=family&rank=genus&rank=species&nolimit=false&sort=taxonomically&criteria_panel=selection
 
-source("/home/frousseu/Documents/github/flore.quebec/data/functions.R")
+###https://data.canadensys.net/vascan/checklist?lang=fr&habit=all&taxon=0&combination=anyof&province=QC&status=native&status=introduced&status=ephemeral&rank=class&rank=subclass&rank=superorder&rank=order&rank=family&rank=subfamily&rank=tribe&rank=subtribe&rank=genus&rank=subgenus&rank=section&rank=subsection&rank=series&rank=species&rank=subspecies&rank=variety&nolimit=false&sort=taxonomically&criteria_panel=selection ## 2024-11-10
 
-gbif<-fread("/home/frousseu/Documents/github/flore.quebec/data/gbif/0039190-240321170329656.csv")
+d <- fread("/home/frousseu/Documents/github/flore.quebec/data/vascan/DWC-2c9d816e-9ff9-4c1f-8bb5-f3047e05f50a/TXT-76b0e2bc-7f67-46c2-8d78-1e3687b59e26.txt",header=TRUE,encoding="UTF-8")
+d$species <- d$`Nom scientifique`
 
-lf<-list.files("/home/frousseu/Documents/github/flore.quebec/data/vascan",full=TRUE,pattern=".txt")
+taxon <- fread("/home/frousseu/Documents/github/flore.quebec/data/vascan/DWC-2c9d816e-9ff9-4c1f-8bb5-f3047e05f50a/taxon.txt")
 
-taxon<-fread(grep("taxon",lf,value=TRUE))
-spnames<-unique(taxon$scientificName)
-sp<-sapply(strsplit(spnames," "),function(i){
-  g<-match("var.",i)
-  if(is.na(g)){
-    paste(i[1:2],collapse=" ")
-  }else{
-    paste(i[1:4],collapse=" ")
+### First get full taxonomy
+taxo <- c("Classe", "Sous classe", "Super ordre", "Ordre", "Famille", "Sous famille", "Tribu", "Sous tribu", "Genre", "Sous genre", "Section", "Sous section", "Série", "Espèce", "Sous espèce", "Variété")
+setdiff(taxo, names(table(d$Rang)))
+
+
+
+source("functions.R")
+#path <- "vascan"
+path <- "vascan/DWC-2c9d816e-9ff9-4c1f-8bb5-f3047e05f50a"
+lf <- list.files(path, full = TRUE, pattern = ".txt")
+d <- fread(grep("TXT-", lf, value = TRUE), header = TRUE, encoding = "UTF-8")
+gbif<-fread("gbif/0039190-240321170329656.csv")
+
+
+
+taxon <- fread(grep("taxon", lf, value = TRUE))
+### Hydroctyle Hydrocotyle scientificName has a problem with the author
+taxon[, scientificNameAuthorship := gsub("Hydrocotyle", "", scientificNameAuthorship)]
+taxon[, scientificName := gsub("Hydrocotyle Hydrocotyle", "Hydrocotyle", scientificName)]
+
+sp <- sapply(1:nrow(taxon), function(i){ # the following removes authors from the name and it relies on the author text to be the same in both
+  authors <- taxon$scientificNameAuthorship[i]
+  if(authors != ""){
+    gsub(authors, "", taxon$scientificName[i], fixed = TRUE) |>
+      gsub("\\s+", " ", x = _) |>
+      trimws()
+  } else {
+    taxon$scientificName[i]
   }
 })
-spnames<-data.table(scientificName=spnames,sp=sp)
-taxon<-taxon[spnames,on="scientificName"]
+taxon[, sp := sp]
+
+
+
+sptax <- invisible(sapply(1:nrow(taxon), function(i){
+  print(i)
+  parents <- NULL
+  ma <- match(taxon$parentNameUsageID[i], taxon$taxonID) 
+  while(!is.na(ma)){
+    parents <- c(parents, taxon$taxonID[ma])
+    ma <- match(taxon$parentNameUsageID[ma], taxon$taxonID) 
+  }
+  matches <- match(c(taxon$taxonID[i], parents), taxon$taxonID)
+  res <- taxon$sp[matches]
+  names(res) <- taxon$taxonRank[matches]
+  res |> as.list() |> as.data.table()
+})) |> rbindlist(fill = TRUE)
+
+
+sptaxssp <- sptax[taxon$taxonomicStatus == "accepted", ]
+l <- split(sptaxssp, sptaxssp$species)
+fulltaxon <- do.call("rbind", lapply(l, function(i){
+  s <- i[is.na(i$variety) & is.na(subspecies), ]  
+  if(nrow(i) >=2){
+    if(nrow(i) == 2){
+      s$sub <- sort(c(i$subspecies, i$variety))
+    } else {
+      s$sub <- paste(sort(unique(c(i$subspecies, i$variety))), collapse = ", ") 
+    }
+  } else {
+    s$sub <- NA
+  }
+  s
+}))
+
+
+
+
+
+#spnames<-unique(taxon$scientificName)
+#sp<-sapply(strsplit(spnames," "),function(i){
+#  g <- match(c("var.", "subsp."), i)
+#  if(all(is.na(g))){
+#    paste(i[1:2],collapse=" ")
+#  }else{
+#    if(all(!is.na(g))){
+#      paste(i[1:6],collapse=" ")
+#      print("double")
+#    }else{
+#      paste(i[1:4],collapse=" ")
+#    }
+#  }
+#})
+#spnames<-data.table(scientificName=spnames,sp=sp)
+#taxon<-taxon[spnames, on = "scientificName"]
 
 
 distribution<-fread(grep("distribution",lf,value=TRUE))
@@ -44,10 +118,6 @@ vernacular<-fread(grep("vernacularname",lf,value=TRUE))
 vernacular<-vernacular[language=="FR" & isPreferredName,]
 
 
-#d<-fread("/home/frousseu/Documents/github/floreqc/vascan.csv",header=TRUE,encoding="UTF-8")
-
-d<-fread("/home/frousseu/Documents/github/flore.quebec/data/vascan/TXT-cb6aed5b-c20b-42c1-8e25-327fd0a91fe2.txt",header=TRUE,encoding="UTF-8")
-
 d<-d[Rang=="Espèce",]
 d$species<-d$"Nom scientifique"
 #d<-d[-grep("×",d$species),] # removes hybrid
@@ -55,6 +125,8 @@ d[,taxonID:=as.integer(basename(URL))]
 
 # d<-d[taxon,on="taxonID", nomatch=NULL]
 d <- merge(d, taxon, all.x = TRUE)
+d <- merge(d, fulltaxon[, c("species", setdiff(names(fulltaxon), names(d))), with = FALSE], by = "species", all.x = TRUE)
+
 
 taxon2<-taxon[taxonRank=="species" & taxonomicStatus=="synonym",]
 taxon2[,taxonID:=as.integer(acceptedNameUsageID)]
@@ -78,16 +150,16 @@ taxon2[species == "Koeleria spicata",.(species, species_alt, nbobs)]
 d<-d[taxon2,on="taxonID",species_alt:=i.species_alt]
 
 ### add sections
-ma <- match(d$taxonID, taxon$taxonID)
-section <- sapply(strsplit(taxon$higherClassification[ma], ";"), function(i){
-  g <- grep(" sect\\. ", i)
-  if(any(g)){
-    sapply(strsplit(i[g]," "), "[", 3)
-  }else{
-    NA
-  }
-})
-d$section <- section
+#ma <- match(d$taxonID, taxon$taxonID)
+#section <- sapply(strsplit(taxon$higherClassification[ma], ";"), function(i){
+#  g <- grep(" sect\\. ", i)
+#  if(any(g)){
+#    sapply(strsplit(i[g]," "), "[", 3)
+#  }else{
+#    NA
+#  }
+#})
+#d$section <- section
 
 
 
@@ -103,7 +175,7 @@ d<-merge(d,vernacular,all.x=TRUE,by="taxonID")
 
 
 ### add plant type
-desc <- fread("/home/frousseu/Documents/github/flore.quebec/data/vascan/description.txt")
+desc <- fread(file.path(path, "description.txt"))
 d <- merge(d, desc, all.x = TRUE)
 d$type <- d$description
 d$type <- gsub("herb", "herbe", d$type)
@@ -122,13 +194,14 @@ d$type <- gsub(",", ", ", d$type)
 ### gnr
 sp <- d$species#[1:200]
 
-d$inatID <- translate2inat(sp)
+#d$inatID <- translate2inat(sp)
+d$inatID <- translate2inat2(sp)
 
 table(is.na((d$inatID)))
 
-#d[is.na(as.integer(basename(d$inatID))),.(species,species_alt,inatID)]
+#xx <- d[is.na(as.integer(basename(d$inatID))),.(species,species_alt,inatID)]
 
-
+#translate2inat2(xx$species_alt)
 
 ### get inat ids from checklistbank.org
 #url<-"https://api.checklistbank.org/dataset/2012/nameusage/"
@@ -174,7 +247,10 @@ d$fna<-ifelse(unlist(ex)[match(d$fna,links)],d$fna,NA)
 
 ### POWO links maybe use only accepted = TRUE
 sp<-d$species#[1:2]
-powo<-get_pow_(sp,ask=FALSE,accepted=FALSE,rank_filter="species") # need to correct
+powo <- do.call("rbind", lapply(sp, function(i){
+  Sys.sleep(0.25) # kew api rate limit is apparently 5/sec see https://github.com/ropensci/taxize/issues/836
+  get_pow_(i, ask = FALSE, accepted = FALSE, rank_filter = "species") # need to correct
+})) 
 #powourl<-data.frame(sp=sp,powo=attributes(powo)$uri)
 powourl<-data.frame(sp=sp,powo=sapply(powo,function(i){paste0("http://powo.science.kew.org/",i$url[1])}))
 d$powo<-powourl$powo[match(d$species,powourl$sp)]
@@ -214,7 +290,7 @@ d[is.na(inatID), inatID := ans[.SD, on=.(sp), x.id]]
 #row.names(res) <- NULL
 
 species_alt <- taxon2[species %in% sp, ]$species_alt
-ans <- translate2inat(species_alt)
+ans <- translate2inat2(species_alt)
 ans <- data.table(taxon2[species %in% sp, ], inatID = ans)
 ans <- ans[ !is.na(inatID), ]
 ans <- ans[order(species, -nbobs)]
@@ -265,8 +341,8 @@ d$inat<-ifelse(is.na(inat), NA, paste0("https://www.inaturalist.org/observations
 
 
 ### VASCAN links
-im<-image_read("https://layout.canadensys.net/common/images/favicon.ico")
-image_write(image_trim(im[6]),"/home/frousseu/Documents/github/floreqc/vascanlogo.jpg")
+#im<-image_read("https://layout.canadensys.net/common/images/favicon.ico")
+#image_write(image_trim(im[6]),"/home/frousseu/Documents/github/floreqc/vascanlogo.jpg")
 d$vascan<-d$references
 
 
@@ -309,7 +385,7 @@ links<-unique(d$herbierqc)
 plan(multisession,workers=8) # parallel too fast for website
 ex<-lapply(links, function(i){
   print(i)
-  Sys.sleep(runif(1,0.5,2))
+  #Sys.sleep(runif(1,0.5,2))
   url.exists(i)
 })
 plan(sequential)
@@ -340,10 +416,35 @@ s<-s[!duplicated(s$species),]
 d<-s[d,on=.(species)]
 
 
-#fwrite(d,"/home/frousseu/Documents/github/flore.quebec/data/plants2.csv")
+#fwrite(d,"/home/frousseu/Documents/github/flore.quebec/data/plants2024-11-23.csv")
 d<-fread("/home/frousseu/Documents/github/flore.quebec/data/plants2.csv")
 #d[, inatID := ifelse(basename(inatID) == "NA", NA, inatID)]
 #setdiff(dd$species, d$species)
+
+oldsp <- setdiff(d$species, d2$species)
+newsp <- setdiff(d2$species, d$species)
+
+oldsp <- lapply(oldsp, function(i){
+  ma <- match(i, taxon$sp)
+  if(!is.na(ma)){
+    sp <- taxon$acceptedNameUsage[ma]
+    res <- taxon$sp[match(sp, taxon$scientificName)]
+  } else {
+    g <- grep(i, taxon$sp)
+    if(any(g)){
+      sp <- unique(taxon$acceptedNameUsage[g])
+      res <- taxon$sp[match(sp, taxon$scientificName)]
+    } else {
+      res <- NA
+    }
+  }
+  data.frame(old = i, new = res)
+}) |> do.call("rbind", args = _)
+  
+newnewsp <- setdiff(newsp, oldsp$new)
+
+
+
 
 
 
