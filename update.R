@@ -7,6 +7,7 @@ source("/home/frousseu/Documents/github/flore.quebec/data/functions.R")
 d<-fread("/home/frousseu/Documents/github/flore.quebec/data/plants2.csv")
 #d[, inatID := ifelse(basename(inatID) == "NA", NA, inatID)]
 #setdiff(dd$species, d$species)
+#setdiff(d$species, dd$species)
 
 random_photos <- fread("random_photos.csv", fill = TRUE)
 random_photos$idobs <- as.integer(random_photos$idobs)
@@ -14,7 +15,7 @@ random_photos <- random_photos[!is.na(when), ]
 random_photos$species <- d$species[match(random_photos$idtaxa,d$idtaxa)]
 
 
-commits <- latest_species_commits(100, species = FALSE)
+commits <- latest_species_commits(150, species = FALSE)
 w <- which(commits$login == "Sckende")
 if(any(w)){
   commits$login[w] <- "frousseu"
@@ -29,7 +30,12 @@ if(any(w)){
   commits$name[w] <- "Marc-Aurèle Vallée"
 }
 
-
+w <- which(commits$login == "AnneMarieBlanchette") # temp for marc aurèle
+if(any(w)){
+  commits$login[w] <- "AnneMarieBlanchette"
+  commits$author[w] <- "Anne-Marie Blanchette"
+  commits$name[w] <- "Anne-Marie Blanchette"
+}
 
 commits <- commits[!commits$file %in% c("Espèces/Acanthaceae/Justicia/Test_test.md", "Espèces/Acanthaceae/Justicia/Test_test2.md"), ]
 commits <- commits[grepl("Espèces/", commits$file), ]
@@ -74,9 +80,13 @@ d <- merge(d, spcontrib, all.x = TRUE)
 
 ### get latest modifications
 commits[ , species := trimws(gsub("_|\\.md"," ",basename(file)))]
-commits[order(-date),]
+x <- commits[order(-date),]
+g <- grep("Merge pull request|Merge branch", x$message)
+if(any(g)){ # do not count merges for changes or species contributions
+  x <- x[-g, ]
+} 
 d[ , date := "1970-01-01T00:00:00Z"]
-latest <- commits$date[match(d$species, commits$species)]
+latest <- x$date[match(d$species, x$species)]
 d[ , date := ifelse(!is.na(latest), latest, d$date)]
 
 
