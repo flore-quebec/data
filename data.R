@@ -14,10 +14,22 @@ library(Hmisc)
 library(sf)
 
 
+lf <- list.files("/home/frousseu/Documents/github/flore.quebec/species/Espèces", recursive = TRUE) |>
+        basename() |>
+        gsub("_", " ", x = _) |>
+        gsub(".md", "", x = _)  
+
+setdiff(d$species, lf)
+setdiff(lf, d$species)
+
 ### VASCAN request when updatingS
 # https://data.canadensys.net/vascan/checklist?lang=fr&habit=all&taxon=0&combination=anyof&province=QC&status=native&status=introduced&status=ephemeral&rank=class&rank=order&rank=family&rank=genus&rank=species&nolimit=false&sort=taxonomically&criteria_panel=selection
 
 ###https://data.canadensys.net/vascan/checklist?lang=fr&habit=all&taxon=0&combination=anyof&province=QC&status=native&status=introduced&status=ephemeral&rank=class&rank=subclass&rank=superorder&rank=order&rank=family&rank=subfamily&rank=tribe&rank=subtribe&rank=genus&rank=subgenus&rank=section&rank=subsection&rank=series&rank=species&rank=subspecies&rank=variety&nolimit=false&sort=taxonomically&criteria_panel=selection ## 2024-11-10
+
+###https://data.canadensys.net/vascan/checklist?lang=fr&habit=all&taxon=0&combination=anyof&province=QC&status=native&status=introduced&status=ephemeral&status=excluded&status=extirpated&status=doubtfull&rank=class&rank=subclass&rank=superorder&rank=order&rank=family&rank=subfamily&rank=tribe&rank=subtribe&rank=genus&rank=subgenus&rank=section&rank=subsection&rank=series&rank=species&rank=subspecies&rank=variety&nolimit=false&sort=taxonomically&criteria_panel=selection
+
+###https://data.canadensys.net/vascan/checklist?lang=fr&habit=all&taxon=0&combination=anyof&province=QC&status=native&status=introduced&status=ephemeral&status=doubtful&status=extirpated&status=excluded&rank=class&rank=subclass&rank=superorder&rank=order&rank=family&rank=subfamily&rank=tribe&rank=subtribe&rank=genus&rank=subgenus&rank=section&rank=subsection&rank=series&rank=species&rank=subspecies&rank=variety&nolimit=false&sort=taxonomically&criteria_panel=selection
 
 d <- fread("/home/frousseu/Documents/github/flore.quebec/data/vascan/DWC-2c9d816e-9ff9-4c1f-8bb5-f3047e05f50a/TXT-76b0e2bc-7f67-46c2-8d78-1e3687b59e26.txt",header=TRUE,encoding="UTF-8")
 d$species <- d$`Nom scientifique`
@@ -28,15 +40,25 @@ taxon <- fread("/home/frousseu/Documents/github/flore.quebec/data/vascan/DWC-2c9
 taxo <- c("Classe", "Sous classe", "Super ordre", "Ordre", "Famille", "Sous famille", "Tribu", "Sous tribu", "Genre", "Sous genre", "Section", "Sous section", "Série", "Espèce", "Sous espèce", "Variété")
 setdiff(taxo, names(table(d$Rang)))
 
-
+#https://www.inaturalist.org/observations/221034864
+#https://www.inaturalist.org/observations/171139599
+#https://www.inaturalist.org/observations/221036552
 
 source("functions.R")
 #path <- "vascan"
-path <- "vascan/DWC-2c9d816e-9ff9-4c1f-8bb5-f3047e05f50a"
+#path <- "vascan/DWC-2c9d816e-9ff9-4c1f-8bb5-f3047e05f50a" # 2024-11-10
+#path <- "vascan/DWC-e35dd5ef-1455-4225-a449-0d217c5fffaa" # 2024-12-28
+#path <- "vascan/DWC-6e2c5a32-fffd-4bc3-8a6d-fbaf0bc514c8" # 2024-12-30
+#path <- "vascan/DWC-e3a012c3-7c44-4ca1-ab5e-6d59c95955b4" # 2024-12-30 with hybrids
+path <- "vascan/DWC-d9ff480b-7358-41fd-b89a-b88c5a150abe" # 2024-12-30 without hybrids, but with all excluded/extirpated/etc.
 lf <- list.files(path, full = TRUE, pattern = ".txt")
 d <- fread(grep("TXT-", lf, value = TRUE), header = TRUE, encoding = "UTF-8")
+g <- grep("×", d$`Nom scientifique`)
+if(any(g)){
+  d <- d[-g, ]
+}
+d <- d[!Québec %in% c("Disparu", "Douteux", "Exclu"), ]
 gbif<-fread("gbif/0039190-240321170329656.csv")
-
 
 
 taxon <- fread(grep("taxon", lf, value = TRUE))
@@ -118,8 +140,8 @@ vernacular<-fread(grep("vernacularname",lf,value=TRUE))
 vernacular<-vernacular[language=="FR" & isPreferredName,]
 
 
-d<-d[Rang=="Espèce",]
-d$species<-d$"Nom scientifique"
+d <- d[Rang == "Espèce",]
+d$species <- d$"Nom scientifique"
 #d<-d[-grep("×",d$species),] # removes hybrid
 d[,taxonID:=as.integer(basename(URL))]
 
@@ -246,7 +268,7 @@ d$fna<-ifelse(unlist(ex)[match(d$fna,links)],d$fna,NA)
 
 
 ### POWO links maybe use only accepted = TRUE
-sp<-d$species#[1:2]
+sp <- d$species#[1:2]
 powo <- do.call("rbind", lapply(sp, function(i){
   Sys.sleep(0.25) # kew api rate limit is apparently 5/sec see https://github.com/ropensci/taxize/issues/836
   get_pow_(i, ask = FALSE, accepted = FALSE, rank_filter = "species") # need to correct
@@ -316,6 +338,7 @@ ans <- translate2inat(gsub(" × ", " ", unname(unlist(powonames))))
 ans <- data.table(species = names(powonames), inatID = unname(unlist(ans)))
 d[is.na(inatID), inatID := ans[.SD, on=.(species), x.inatID]]
 sp <- d[is.na(inatID), .(species,powo)]$species
+sp
 
 ### Manual add-ons
 man <- list(
@@ -326,12 +349,15 @@ man <- list(
   #"Pentanema britannicum" = 1320685,
   #"Salix elaeagnos" = 338098
   #"Crataegus knieskerniana" = 
-  "Palustricodon aparinoides" = 127957
+  #"Palustricodon aparinoides" = 127957
 )
 
-ans <- data.table(species = "Palustricodon aparinoides", inatID = 127957)
+#ans <- data.table(species = "Palustricodon aparinoides", inatID = 127957)
+#ans <- data.table(species = "Palustricodon aparinoides", inatID = 1449995)
+ans <- data.table(species = "Cirsium minganense", inatID = 76357) # temp use C. scariosum
 d[is.na(inatID), inatID := ans[.SD, on=.(species), x.inatID]]
 sp <- d[is.na(inatID), .(species,powo)]$species
+sp
 
 ### iNat links
 inat<-basename(d$inatID)
@@ -382,13 +408,13 @@ nomvern<-tolower(gsub(" |'","-",d$vernacularFR))
 nomvern<-iconv(nomvern,to="ASCII//TRANSLIT")
 d$herbierqc<-paste0("https://herbierduquebec.gouv.qc.ca/plante/",nomvern)
 links<-unique(d$herbierqc)
-plan(multisession,workers=8) # parallel too fast for website
+#plan(multisession,workers=8) # parallel too fast for website
 ex<-lapply(links, function(i){
   print(i)
-  #Sys.sleep(runif(1,0.5,2))
+  #Sys.sleep(runif(1,0.5,2)) # need to find a way or be patient
   url.exists(i)
 })
-plan(sequential)
+#plan(sequential)
 d$herbierqc<-ifelse(unlist(ex)[match(d$herbierqc,links)],d$herbierqc,NA)
 
 ### statuts
@@ -416,8 +442,16 @@ s<-s[!duplicated(s$species),]
 d<-s[d,on=.(species)]
 
 
-#fwrite(d,"/home/frousseu/Documents/github/flore.quebec/data/plants2024-11-23.csv")
-d<-fread("/home/frousseu/Documents/github/flore.quebec/data/plants2.csv")
+d[, subgenus := gsub(" subg. ", "_sous-genre_", subgenus)]
+d[, section := gsub(" sect. ", "_section_", section)]
+d[, subsection := gsub(" subsect. ", "_sous-section_", subsection)]
+d[, series := gsub(" ser. ", "_série_", series)]
+
+
+
+#fwrite(d, "/home/frousseu/Documents/github/flore.quebec/data/plants2024-12-18.csv")
+#d<-fread("/home/frousseu/Documents/github/flore.quebec/data/plants2.csv")
+d <- fread("/home/frousseu/Documents/github/flore.quebec/data/plants2024-12-18.csv")
 #d[, inatID := ifelse(basename(inatID) == "NA", NA, inatID)]
 #setdiff(dd$species, d$species)
 
@@ -427,14 +461,18 @@ newsp <- setdiff(d2$species, d$species)
 oldsp <- lapply(oldsp, function(i){
   ma <- match(i, taxon$sp)
   if(!is.na(ma)){
+    orig <- gsub(taxon$scientificNameAuthorship[ma], "", taxon$scientificName[ma])
     sp <- taxon$acceptedNameUsage[ma]
     res <- taxon$sp[match(sp, taxon$scientificName)]
   } else {
     g <- grep(i, taxon$sp)
     if(any(g)){
+      orig <- unique(sapply(g, \(x){gsub(taxon$scientificNameAuthorship[x], "", taxon$scientificName[x])}))
       sp <- unique(taxon$acceptedNameUsage[g])
       res <- taxon$sp[match(sp, taxon$scientificName)]
+      #res <- NA
     } else {
+      orig <- i
       res <- NA
     }
   }
@@ -443,8 +481,47 @@ oldsp <- lapply(oldsp, function(i){
   
 newnewsp <- setdiff(newsp, oldsp$new)
 
+oldsp
+newsp
+newnewsp
 
 
 
+
+changes <- rbind(oldsp, data.frame(old = NA, new = newnewsp))
+
+changes <- split(changes, ifelse(is.na(changes$old), "new", ifelse(is.na(changes$new), "removed", "changed"))) |> 
+           lapply(\(x){x[order(x[, 1], x[, 2]),]})
+
+taxon$Name <- sapply(1:nrow(taxon), function(i){
+  pattern <- taxon$scientificNameAuthorship[i]
+  if(pattern != ""){
+    gsub(pattern, "", taxon$scientificName[i])
+  }else{
+    taxon$scientificName[i]
+  }
+})
+
+lapply(oldsp$old, function(i){
+  g <- grep(i, taxon$scientificName)
+  taxon[ g, .(scientificName, acceptedNameUsage)]
+})
+
+
+oldsp <- setdiff(d$scientificName, d2$scientificName)
+oldsp[is.na(match(oldsp, taxon$scientificName))]
+d$id[is.na(match(d$scientificName, taxon$scientificName))]
+oldsp <- setdiff(d$species, d2$species)
+lapply(oldsp, function(i){
+  i <- oldsp[6]
+  url <- paste0("https://data.canadensys.net/vascan/api/0.1/search.json?q=", gsub(" ", "+", i))  
+  cat(url)
+  json <- fromJSON(url)
+  if(json$results$numMatches){
+    accepted <- NA
+  } else {
+      
+  }
+})
 
 

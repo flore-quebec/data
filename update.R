@@ -4,7 +4,8 @@
 source("/home/frousseu/Documents/github/flore.quebec/data/functions.R")
 
 #fwrite(d,"/home/frousseu/Documents/github/flore.quebec/data/plants.csv")
-d<-fread("/home/frousseu/Documents/github/flore.quebec/data/plants2.csv")
+#d<-fread("/home/frousseu/Documents/github/flore.quebec/data/plants2.csv")
+d <- fread("/home/frousseu/Documents/github/flore.quebec/data/plants2024-12-18.csv")
 #d[, inatID := ifelse(basename(inatID) == "NA", NA, inatID)]
 #setdiff(dd$species, d$species)
 #setdiff(d$species, dd$species)
@@ -15,7 +16,7 @@ random_photos <- random_photos[!is.na(when), ]
 random_photos$species <- d$species[match(random_photos$idtaxa,d$idtaxa)]
 
 
-commits <- latest_species_commits(150, species = FALSE)
+commits <- latest_species_commits(50, species = FALSE)
 w <- which(commits$login == "Sckende")
 if(any(w)){
   commits$login[w] <- "frousseu"
@@ -35,6 +36,13 @@ if(any(w)){
   commits$login[w] <- "AnneMarieBlanchette"
   commits$author[w] <- "Anne-Marie Blanchette"
   commits$name[w] <- "Anne-Marie Blanchette"
+}
+
+w <- which(commits$login == "Simon1Pesant") # temp for marc aurèle
+if(any(w)){
+  commits$login[w] <- "Simon1Pesant"
+  commits$author[w] <- "Simon Pesant"
+  commits$name[w] <- "Simon Pesant"
 }
 
 commits <- commits[!commits$file %in% c("Espèces/Acanthaceae/Justicia/Test_test.md", "Espèces/Acanthaceae/Justicia/Test_test2.md"), ]
@@ -184,8 +192,8 @@ lc <- lapply(lc, function(i){
 image_array<-function(){
   #cat("/014")
   l<-sapply(pics,function(i){
-    tags<-c("src","alt","famille","genre","section","espèce","fna","inat","vascan","gbif","powo","herbierqc","class","ordre","nobs","vernaculaire","vernacularFRalt","vernacularEN","botanic","alternatif","status","protection","taxonomic_order","LOIEMV","COSEWIC","SARASTATUS","GRANK","NRANK","SRANK","contribution","date","initiated")
-    tagnames<-c("url","species","family","genus","section","species","fna","inat","vascan","gbif","powo","herbierqc","class","order","nobs","vernacularFR","vernacularFRalt","vernacularEN","botanic","alternatif","Québec","protection","taxonomic_order","LOIEMV","COSEWIC","SARASTATUS","GRANK","NRANK","SRANK","contribution","date","initiated")
+    tags<-c("src","alt","famille","genre","section","espèce","fna","inat","vascan","gbif","powo","herbierqc","class","ordre","nobs","vernaculaire","vernacularFRalt","vernacularEN","botanic","alternatif","status","protection","taxonomic_order","LOIEMV","COSEWIC","SARASTATUS","GRANK","NRANK","SRANK","contribution","date","initiated", "'sous-famille'", "'sous-genre'", "tribu", "section", "'sous-tribu'", "série", "'sous-section'")
+    tagnames<-c("url","species","family","genus","section","species","fna","inat","vascan","gbif","powo","herbierqc","class","order","nobs","vernacularFR","vernacularFRalt","vernacularEN","botanic","alternatif","Québec","protection","taxonomic_order","LOIEMV","COSEWIC","SARASTATUS","GRANK","NRANK","SRANK","contribution","date","initiated", "subfamily", "subgenus", "tribe", "section", "subtribe", "series", "subsection")
     info<-unlist(as.vector(i[1,..tagnames]))
     info<-unname(sapply(info,function(x){paste0("\"",x,"\"")}))
 
@@ -256,15 +264,30 @@ all_values<-function(x,append=TRUE){
 
 # dim(d) and length(pics) that's the probelm with the indexing
 
-option_values(rbindlist(pics),tag="family", append=FALSE)
-option_values(rbindlist(pics),tag="genus")
-option_values(rbindlist(pics),tag="section")
-option_values(rbindlist(pics),tag="species")
+write("", file= "data.js", append = FALSE)
+#option_values(rbindlist(pics),tag="family", append=FALSE) # the option values are probably not useful anymore
+#option_values(rbindlist(pics),tag="genus")
+#option_values(rbindlist(pics),tag="section")
+#option_values(rbindlist(pics),tag="species")
 all_values(d)
+#write("", file= "data.js", append = FALSE)
 image_array()
 write(paste("const contributions = [", paste(lc, collapse = ", ") ,"];"), file = "data.js", append = TRUE)
 system("cp /home/frousseu/Documents/github/flore.quebec/data/data.js /home/frousseu/Documents/github/flore.quebec/flore.quebec/data.js")
 #file.show("/home/frousseu/Documents/github/floreqc/flora.html")
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
