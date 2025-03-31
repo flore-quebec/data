@@ -2,19 +2,23 @@
 
 source("/home/frousseu/Documents/github/flore.quebec/data/functions.R")
 
-d<-fread("/home/frousseu/Documents/github/floreqc/plants2.csv")
+d <- fread("/home/frousseu/Documents/github/flore.quebec/data/plants2024-12-18.csv")
 random_photos <- fread("random_photos.csv", fill = TRUE)
 
 
-iders<-paste(c("frousseu","elacroix-carignan","lysandra","marc_aurele","elbourret","bickel","michael_oldham","wdvanhem","sedgequeen","hsteger","seanblaney","chasseurdeplantes","birds_bugs_botany","bachandy","paquette0747","brothernorbert","tsn","ludoleclerc","trscavo","ken_j_allison","alexandre_bergeron","johnklymko","charlie","mcusson","mhough","birddogger","ibarzabal_j","choess","m-bibittes","brucebennett","tiarelle","polemoniaceae"),collapse=",")
+iders <- paste(c("frousseu","elacroix-carignan","lysandra","marc_aurele","elbourret","bickel","michael_oldham","wdvanhem","sedgequeen","hsteger","seanblaney","chasseurdeplantes","birds_bugs_botany","bachandy","paquette0747","brothernorbert","tsn","ludoleclerc","trscavo","ken_j_allison","alexandre_bergeron","johnklymko","charlie","mcusson","mhough","birddogger","ibarzabal_j","choess","m-bibittes","brucebennett","tiarelle","polemoniaceae"),collapse=",")
 
 #iders<-paste(c("marc_aurele","frousseu","lysandra"),collapse=",")
 
 #df<-get_photos(id=169114,iders=iders,place=TRUE)[0,]
 
 set.seed(1234)
-ids<-basename(d$inatID)
-ids<-basename(d$inatID[!d$idtaxa %in% random_photos$idtaxa])
+#extraids <- basename(d$inatID[d$species %in% c("Poa saltuensis", "Poa alsodes")]) # update those species
+#random_photos <- random_photos[!idtaxa %in% extraids, ]
+#fwrite(random_photos, "random_photos.csv", append = FALSE)
+#ids<-basename(d$inatID)
+ids <- basename(d$inatID[!d$idtaxa %in% random_photos$idtaxa])
+#ids <- unique(c(ids, extraids))
 random_photos<-lapply(seq_along(ids),function(i){
   #cat(paste(i,"/r"));flush.console()
   print(i)

@@ -327,6 +327,7 @@ get_random_photos<-function(id,license=c("cc0","cc-by","cc-by-nc"),iders=NULL,pl
   cc<-paste(license,collapse=",")
   #x<-fromJSON(paste0("https://api.inaturalist.org/v1/observations?photo_license=",cc,"&taxon_id=",id,"&quality_grade=research&ident_user_id=",iders,"&order=desc&order_by=created_at"))
   api<-paste0("https://api.inaturalist.org/v1/observations?photo_license=",cc,"&taxon_id=",id,if(is.null(place)){""}else{"&place_id=13336"},if(is.null(iders)){""}else{paste0("&ident_user_id=",iders)},"&order=desc&order_by=created_at&per_page=200")
+  print(api)
   x<-fromJSON(api)#$to
   if(x$total_results==0){
     return(NULL)

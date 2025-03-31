@@ -277,24 +277,6 @@ system("cp /home/frousseu/Documents/github/flore.quebec/data/data.js /home/frous
 #file.show("/home/frousseu/Documents/github/floreqc/flora.html")
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #x<-x[grep("QC//, Canada|Québec//, Canada",x$place_guess),]
 
 
