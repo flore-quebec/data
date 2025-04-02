@@ -50,8 +50,18 @@ values2 <- unique(d[["vernacularFR"]])
 values2 <- unique(sapply(strsplit(values2," "), "[", 1))
 values <- sort(unique(c(values1, values2)))
 values <- values[values != ""]
-nom <- data.frame(level = "nom", taxa = values)
+
+lf <- list.files("/home/frousseu/Documents/github/flore.quebec/keys/clés", full = TRUE, recursive = TRUE, pattern = "_clé.md")
+lf2 <- gsub("_clé.md", "", basename(lf[sapply(lf, function(i){sum(nchar(readLines(i))) > 1})]))
+ma <- match(l$taxa, gsub("_clé.md", "", basename(lf)))
+l$key <- ifelse(!is.na(ma) & (l$taxa %in% lf2), gsub("/home/frousseu/Documents/github/flore.quebec/keys/", "", lf[ma]), "")
+l$taxon <- ""
+
+
+nom <- data.frame(level = "nom", taxa = values, key = "", taxon = "")
 l <- rbind(l, nom)
+
+l[l$key != "", ]
 
 paste0("const taxa = ", toJSON(l), ";") |> write("taxa.js", append = FALSE)
 system("cp /home/frousseu/Documents/github/flore.quebec/data/taxa.js /home/frousseu/Documents/github/flore.quebec/flore.quebec/taxa.js")
