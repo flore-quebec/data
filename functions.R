@@ -38,6 +38,11 @@ latest_species_commits <- function(n = 100, species = TRUE){
   x <- x[grep("_", x$file),]
   rem <- c("0fe221835f4c22857bb9443434bdaedef7fb6584", "3cda8bf851afdde774cea6b32ae8d0f07a262953", "13d610c3ef114bd3b9e0d872a020c2763fac2c00")
   x <- x[!(x$sha %in% rem), ] # remove .md inits
+  
+  g <- grep("Merge pull request|Merge branch", x$message)
+  if(any(g)){ # do not count merges for changes or species contributions
+    x <- x[-g, ]
+  } 
   if(species){
     unique(x$file)
   }else{
