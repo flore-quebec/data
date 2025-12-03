@@ -2,10 +2,15 @@
 token <- readLines("/home/frousseu/.ssh/github_token")
 remsha <- c("0fe221835f4c22857bb9443434bdaedef7fb6584", "3cda8bf851afdde774cea6b32ae8d0f07a262953")
 
-latest_species_commits <- function(n = 100, species = TRUE){
+latest_species_commits <- function(n = 100, species = TRUE, keys = FALSE){
   token <- readLines("/home/frousseu/.ssh/github_token")
-  githubapi <- paste0("https://frousseu:",token,"@api.github.com/repos/flore-quebec/species/commits")
-  x <- fromJSON(paste0(githubapi,"?path=Esp%C3%A8ces&per_page=",n,"&files=true"))
+  if(keys){
+    githubapi <- paste0("https://frousseu:",token,"@api.github.com/repos/flore-quebec/keys/commits")
+    x <- fromJSON(paste0(githubapi,"?path=cl%C3%A9s&page=1&per_page=",n,"&files=true"))
+  } else {
+    githubapi <- paste0("https://frousseu:",token,"@api.github.com/repos/flore-quebec/species/commits")
+    x <- fromJSON(paste0(githubapi,"?path=Esp%C3%A8ces&page=1&per_page=",n,"&files=true"))
+  }
   sha <- x$sha
   #get_all_local_commits(file)
   l <- lapply(sha, function(i){
@@ -30,13 +35,14 @@ latest_species_commits <- function(n = 100, species = TRUE){
       name[w] <- replace
     }
     ### with too few commits the name cannot be inferred with the author
-    res <- data.frame(sha = i, file = file, author = author, login = login, name = name, date = date, message = message)
+    repo <- ifelse(keys, "keys", "species")
+    res <- data.frame(repo = repo, sha = i, file = file, author = author, login = login, name = name, date = date, message = message)
     res <- cbind(res, x$files[,c("additions","deletions","changes")])
     res
   })
   x <- do.call("rbind", l)
   x <- x[grep("_", x$file),]
-  rem <- c("0fe221835f4c22857bb9443434bdaedef7fb6584", "3cda8bf851afdde774cea6b32ae8d0f07a262953", "13d610c3ef114bd3b9e0d872a020c2763fac2c00")
+  rem <- c("0fe221835f4c22857bb9443434bdaedef7fb6584", "3cda8bf851afdde774cea6b32ae8d0f07a262953", "13d610c3ef114bd3b9e0d872a020c2763fac2c00", "2b0c584d509c1847f727cb97912907b047b528e7")
   x <- x[!(x$sha %in% rem), ] # remove .md inits
   
   g <- grep("Merge pull request|Merge branch", x$message)
@@ -247,21 +253,25 @@ make_species_files <- function(){
 #x <- commits
 
 list_contributions <- function(x){
-  x$name <- x$author
-  w <- which(x$author == x$login)
-  if(any(w)){
-    replace <- sapply(w, function(i){
-      a <- unique(x$author[which(x$login == x$author[i])])
-      a[which(a != x$author[i])[1]]
-    })
-    x$name[w] <- replace
-  }
+  #x$name <- x$author
+  #w <- which(x$author == x$login)
+  #if(any(w)){
+  #  replace <- sapply(w, function(i){
+  #    a <- unique(x$author[which(x$login == x$author[i])])
+  #    a[which(a != x$author[i])[1]]
+  #  })
+  #  x$name[w] <- replace
+  #} # not sure if this is still useful
   x <- x[x$date > "2024-01-28T18:17:06Z", ] # removes the init files
   g <- grep("Merge pull request|Merge branch", x$message)
   if(any(g)){
     x <- x[-g, ]
   }
+  
+  #x <- x[order(file, -date), ]
+  
   l <- lapply(split(x, x$file), function(i){
+    i <- i[order(file, date), ]
     res <- unique(i$name) # matches login first cause author can change
     initiated <- res[1]
     if(length(res) == 1){
@@ -271,7 +281,7 @@ list_contributions <- function(x){
       contribution <- paste0(paste("Initié par", res[1]), paste(" et modifié par", paste(res[-1], collapse=", ") ),".")
       edited <- paste(res[-1], collapse=", ")
     }
-    data.frame(contribution = contribution, initiated = initiated, edited = edited)
+    data.frame(file = i$file[1], contribution = contribution, initiated = initiated, edited = edited, date = changeTZ(i$date[nrow(i)]))
   })
   names(l) <- basename(names(l)) |> gsub("_", " ", x = _) |> gsub(".md", "", x = _)
   data.frame(species = names(l), do.call("rbind", l))
@@ -358,6 +368,15 @@ get_random_photos<-function(id,license=c("cc0","cc-by","cc-by-nc"),iders=NULL,pl
 }
 
 
+x <- "2025-12-03T00:19:49Z"
+
+
+changeTZ <- function(x){
+  t_local <- as.POSIXct(x, format = "%Y-%m-%dT%H:%M:%SZ", tz = "UTC") |>
+    format(tz = Sys.timezone(), usetz = TRUE) |>
+    gsub(" EST| EDT", "Z", x = _) |>
+    gsub(" ", "T", x = _)
+}
 
 
 

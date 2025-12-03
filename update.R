@@ -15,8 +15,11 @@ random_photos$idobs <- as.integer(random_photos$idobs)
 random_photos <- random_photos[!is.na(when), ]
 random_photos$species <- d$species[match(random_photos$idtaxa,d$idtaxa)]
 
+commits <- latest_species_commits(80, species = FALSE, keys = FALSE)
+commits2 <- latest_species_commits(80, species = FALSE, keys = TRUE)
 
-commits <- latest_species_commits(50, species = FALSE)
+commits <- rbind(commits, commits2)
+
 w <- which(commits$login == "Sckende")
 if(any(w)){
   commits$login[w] <- "frousseu"
@@ -45,10 +48,31 @@ if(any(w)){
   commits$name[w] <- "Simon Pesant"
 }
 
-commits <- commits[!commits$file %in% c("Espèces/Acanthaceae/Justicia/Test_test.md", "Espèces/Acanthaceae/Justicia/Test_test2.md"), ]
-commits <- commits[grepl("Espèces/", commits$file), ]
+w <- which(commits$login == "malap2025") # temp for marc aurèle
+if(any(w)){
+  commits$login[w] <- "malap2025"
+  commits$author[w] <- "Martine Lapointe"
+  commits$name[w] <- "Martine Lapointe"
+}
 
-species_modified <- unique(commits$file)
+w <- which(commits$login == "andree-theriault") # temp for marc aurèle
+if(any(w)){
+  commits$login[w] <- "andree-theriault"
+  commits$author[w] <- "Andrée Thériault"
+  commits$name[w] <- "Andrée Thériault"
+}
+
+w <- which(commits$login == "geoffreyhall") # temp for marc aurèle
+if(any(w)){
+  commits$login[w] <- "geoffreyhall"
+  commits$author[w] <- "Geoffrey Hall"
+  commits$name[w] <- "Geoffrey Hall"
+}
+
+commits <- commits[!commits$file %in% c("Espèces/Acanthaceae/Justicia/Test_test.md", "Espèces/Acanthaceae/Justicia/Test_test2.md"), ]
+commits <- commits[grepl("Espèces/|clés/", commits$file), ]
+
+species_modified <- unique(commits$file[grepl("Espèces/", commits$file)])
 selected_photos <- get_species_photos(species_modified)
 setDT(selected_photos)
 #fwrite(selected_photos, "selected_photos.csv")
@@ -59,20 +83,29 @@ fwrite(selected_photos, "selected_photos.csv", append = FALSE)
 #fwrite(commits, "commits.csv", append = FALSE)
 setDT(commits)
 old_commits <- fread("commits.csv", colClasses = "character") # bug with date formats
+#old_commits <- commits[!grepl("malap2025", commits$login),]
+#fwrite(old_commits[,1:11], "commits.csv", append = FALSE) # bug with date formats
+#repo <- ifelse(grepl("_clés.md|_taxon.md", old_commits$file), "keys", "species")
+#old_commits <- cbind(repo = repo, old_commits)
+#fwrite(old_commits, "commits.csv", append = FALSE)
 nums <- c("additions","deletions","changes")
 old_commits[, (nums) := lapply(.SD, as.integer), .SDcols = nums]
 commits <- rbind(commits, old_commits)
+
+# find author name if missing from local repo push??
+w <- which(commits$name == "" | is.na(commits$name))
+if(any(w)){
+ nl <- commits[login %in% commits$login[w] & name != "", .(name, login)] 
+ commits$name[w] <- nl$name[match(commits$login[w], nl$login)]
+}  
+
 commits <- unique(commits)#, by = c("sha", "file"))
 commits <- commits[order(file, date), ]
 
-
-
 fwrite(commits, "commits.csv", append = FALSE)
-
 
 selected_photos<-fread("selected_photos.csv")
 selected_photos$idtaxa <- d$idtaxa[match(selected_photos$species,d$species)]
-
 
 photos <- merge(selected_photos, random_photos, all = TRUE)
 photos <- photos[order(species, rank), ]
@@ -80,22 +113,23 @@ photos <- split(photos, photos$species) |>
   lapply(function(i){i[1:min(c(nrow(i),8)), ]}) |>
   rbindlist()
 
-
-
-spcontrib <- list_contributions(commits)
+spcontrib <- list_contributions(commits[repo == "species", ]) #!!!!!!!!!!!!!!!!!!!!!!!!!! get con fro keys
 setDT(spcontrib)
 d <- merge(d, spcontrib, all.x = TRUE)
+d[ , date := ifelse(is.na(date), "1970-01-01T00:00:00Z", date)]
+
+commits[ , species := trimws(gsub("_|\\.md"," ",basename(file)))]
 
 ### get latest modifications
-commits[ , species := trimws(gsub("_|\\.md"," ",basename(file)))]
-x <- commits[order(-date),]
-g <- grep("Merge pull request|Merge branch", x$message)
-if(any(g)){ # do not count merges for changes or species contributions
-  x <- x[-g, ]
-} 
-d[ , date := "1970-01-01T00:00:00Z"]
-latest <- x$date[match(d$species, x$species)]
-d[ , date := ifelse(!is.na(latest), latest, d$date)]
+#x <- commits[repo == "species", ]
+#x <- x[order(-date),]
+#g <- grep("Merge pull request|Merge branch", x$message)
+#if(any(g)){ # do not count merges for changes or species contributions
+#  x <- x[-g, ]
+#} 
+#d[ , date := "1970-01-01T00:00:00Z"]
+#latest <- x$date[match(d$species, x$species)]
+#d[ , date := ifelse(!is.na(latest), latest, d$date)]
 
 
 #pics<-data.frame(id=ids,pics=photos)
@@ -137,14 +171,26 @@ xl <- list(
   # nb de commits
   y[ , .(nbcommits = .N), by = .(login)], 
   # nb d'espèces initiées
-  unique(z, by = c("species"))[ , .(nbspinitiated = .N), by = .(login)], 
+  unique(z[repo == "species", ], by = c("species"))[ , .(nbspinitiated = .N), by = .(login)], 
+  unique(z[grepl("_clé.md", file), ], by = c("species"))[ , .(nbkeyinitiated = .N), by = .(login)], 
+  unique(z[grepl("_taxon.md", file), ], by = c("species"))[ , .(nbtaxoninitiated = .N), by = .(login)],
   # nb d'espèces modifiées
   #unique(z[duplicated(z, by = c("species")), ] , by = c("login", "species"))[ , .(nbspmodified = .N), by = .(login)], 
   z |>
     unique(by = c("login", "species")) |>
     _[order(species, date), ] |>
     _[duplicated(species), ] |>
-    _[ , .(nbspmodified = .N), by = .(login)] 
+    _[ , .(nbspmodified = .N), by = .(login)],
+  z[grepl("_clé.md", file), ] |>
+    unique(by = c("login", "species")) |>
+    _[order(species, date), ] |>
+    _[duplicated(species), ] |>
+    _[ , .(nbkeymodified = .N), by = .(login)],
+  z[grepl("_taxon.md", file), ] |>
+    unique(by = c("login", "species")) |>
+    _[order(species, date), ] |>
+    _[duplicated(species), ] |>
+    _[ , .(nbtaxonmodified = .N), by = .(login)] 
 )
 x <- Reduce(function(df1, df2) merge(df1, df2, by = "login", all = TRUE), xl)
 x[is.na(x)] <- 0
@@ -188,6 +234,15 @@ lc <- lapply(lc, function(i){
 #image_container(pics$species,pics$url)
 
 #pics<-pics[1:2]
+
+keys <- rbind(
+  list_contributions(commits[grep("_clé.md", file), ]),
+  list_contributions(commits[grep("_taxon.md", file), ])
+) |> setDT()
+keys[, taxon := gsub(" clé| taxon", "", species)]
+keys[, file := basename(file)]
+keys <- keys[, .(file, contribution, date)]
+
 
 image_array<-function(){
   #cat("/014")
@@ -273,6 +328,7 @@ all_values(d)
 #write("", file= "data.js", append = FALSE)
 image_array()
 write(paste("const contributions = [", paste(lc, collapse = ", ") ,"];"), file = "data.js", append = TRUE)
+write(paste0("const keys = ", toJSON(keys), ";"), file = "data.js", append = TRUE)
 system("cp /home/frousseu/Documents/github/flore.quebec/data/data.js /home/frousseu/Documents/github/flore.quebec/flore.quebec/data.js")
 #file.show("/home/frousseu/Documents/github/floreqc/flora.html")
 
