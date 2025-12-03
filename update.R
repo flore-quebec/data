@@ -15,8 +15,8 @@ random_photos$idobs <- as.integer(random_photos$idobs)
 random_photos <- random_photos[!is.na(when), ]
 random_photos$species <- d$species[match(random_photos$idtaxa,d$idtaxa)]
 
-commits <- latest_species_commits(80, species = FALSE, keys = FALSE)
-commits2 <- latest_species_commits(80, species = FALSE, keys = TRUE)
+commits <- latest_species_commits(400, species = FALSE, keys = FALSE)
+commits2 <- latest_species_commits(15, species = FALSE, keys = TRUE) # functions needs to stop if fewer than n
 
 commits <- rbind(commits, commits2)
 

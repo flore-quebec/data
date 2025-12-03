@@ -2,17 +2,31 @@
 token <- readLines("/home/frousseu/.ssh/github_token")
 remsha <- c("0fe221835f4c22857bb9443434bdaedef7fb6584", "3cda8bf851afdde774cea6b32ae8d0f07a262953")
 
+
 latest_species_commits <- function(n = 100, species = TRUE, keys = FALSE){
   token <- readLines("/home/frousseu/.ssh/github_token")
+  pp <- 100 # I think 100 is the limit per page
   if(keys){
     githubapi <- paste0("https://frousseu:",token,"@api.github.com/repos/flore-quebec/keys/commits")
-    x <- fromJSON(paste0(githubapi,"?path=cl%C3%A9s&page=1&per_page=",n,"&files=true"))
+    sha <- split(1:n, ceiling((1:n) / pp)) |>
+      seq_along() |>
+      lapply(function(i){
+        x <- fromJSON(paste0(githubapi,"?path=cl%C3%A9s&page=", i,"&per_page=", pp,"&files=true"))
+        x$sha
+      }) |>
+      unlist(use.names = FALSE) |>
+      _[1:n]  
   } else {
     githubapi <- paste0("https://frousseu:",token,"@api.github.com/repos/flore-quebec/species/commits")
-    x <- fromJSON(paste0(githubapi,"?path=Esp%C3%A8ces&page=1&per_page=",n,"&files=true"))
+    sha <- split(1:n, ceiling((1:n) / pp)) |>
+            seq_along() |>
+            lapply(function(i){
+              x <- fromJSON(paste0(githubapi,"?path=Esp%C3%A8ces&page=", i,"&per_page=", pp,"&files=true"))
+              x$sha
+            }) |>
+            unlist(use.names = FALSE) |>
+            _[1:n]  
   }
-  sha <- x$sha
-  #get_all_local_commits(file)
   l <- lapply(sha, function(i){
     print(i)
     x <- fromJSON(file.path(githubapi,i))
@@ -368,7 +382,7 @@ get_random_photos<-function(id,license=c("cc0","cc-by","cc-by-nc"),iders=NULL,pl
 }
 
 
-x <- "2025-12-03T00:19:49Z"
+#x <- "2025-12-03T00:19:49Z"
 
 
 changeTZ <- function(x){
