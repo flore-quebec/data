@@ -324,6 +324,45 @@ translate2inat <- function(sp){ # make sure order returned corresponds to sp ord
 }
 
 
+list_hc_contributions <- function(folder) { # list hard-coded distributions
+  extract_author_lines <- function(text) {
+    pattern <- "^(Auteurs?|Modifié par|Édité par|Adapté par|Rédigé par)\\s*:.*$"
+    matches <- regmatches(text, gregexpr(pattern, text, perl = TRUE, ignore.case = TRUE))
+    unlist(matches)
+  }
+  split_names <- function(line) {
+    name_part <- sub("^[^:]+:\\s*", "", line)
+    trimws(unlist(strsplit(name_part, ",\\s*| et ")))
+  }
+  files <- list.files(folder, full.names = TRUE, include.dirs = FALSE, recursive = TRUE)
+  results <- lapply(files, function(path) {
+    text <- paste(readLines(path, warn = FALSE))#, collapse = "\n")
+    lines <- extract_author_lines(text)
+    if (length(lines) == 0) return(NULL)
+    
+    rows <- lapply(lines, function(line) {
+      prefix <- regmatches(line, regexpr("^[^:]+", line))
+      names  <- split_names(line)
+      sp <- basename(path) |>
+        gsub("_", " ", x = _) |>
+        gsub(".md", "", x = _)
+      data.frame(species = sp, file = path, role = prefix, name = names, stringsAsFactors = FALSE)
+    })
+    do.call(rbind, rows)
+  })
+  do.call(rbind, Filter(Negate(is.null), results)) |>
+    (\(.){split(., .$species)})() |>
+    lapply(function(i){
+      role <- gsub("Auteur|Auteurs", "initiated", i$role) |>
+        gsub("Modifié par|Édité par|Adapté par", "edited", x = _)
+      initiated <- paste(i$name[role == "initiated"], collapse = ", ")
+      edited <- paste(i$name[role == "edited"], collapse = ", ")
+      date <- max(commits$date[which(commits$species == i$species[1])])
+      file <- paste0(basename(folder), gsub(folder, "", i$file[1]))
+      data.frame(species = i$species[1], file = file, contribution = paste(initiated, edited), initiated = initiated, edited = edited, date = date)
+    }) |>
+    do.call("rbind", args = _)
+}
 
 #api <- "https://verifier.globalnames.org/api/v1/verifications/Mutarda%20nigra|Carex%20lurida?data_sources=147%7C180&all_matches=true&capitalize=false&species_group=false&fuzzy_uninomial=false&stats=false&main_taxon_threshold=0.5"
 

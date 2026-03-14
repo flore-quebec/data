@@ -15,7 +15,7 @@ random_photos$idobs <- as.integer(random_photos$idobs)
 random_photos <- random_photos[!is.na(when), ]
 random_photos$species <- d$species[match(random_photos$idtaxa,d$idtaxa)]
 
-commits <- latest_species_commits(400, species = FALSE, keys = FALSE)
+commits <- latest_species_commits(40, species = FALSE, keys = FALSE)
 commits2 <- latest_species_commits(15, species = FALSE, keys = TRUE) # functions needs to stop if fewer than n
 
 commits <- rbind(commits, commits2)
@@ -114,11 +114,15 @@ photos <- split(photos, photos$species) |>
   rbindlist()
 
 spcontrib <- list_contributions(commits[repo == "species", ]) #!!!!!!!!!!!!!!!!!!!!!!!!!! get con fro keys
+commits[ , species := trimws(gsub("_|\\.md"," ",basename(file)))]
+hccontrib <- list_hc_contributions("/home/frousseu/Documents/github/flore.quebec/species/Espèces")
+spcontrib <- spcontrib[!spcontrib$species %in% hccontrib$species, ] |> rbind(hccontrib)
 setDT(spcontrib)
+
 d <- merge(d, spcontrib, all.x = TRUE)
 d[ , date := ifelse(is.na(date), "1970-01-01T00:00:00Z", date)]
 
-commits[ , species := trimws(gsub("_|\\.md"," ",basename(file)))]
+#commits[ , species := trimws(gsub("_|\\.md"," ",basename(file)))]
 
 ### get latest modifications
 #x <- commits[repo == "species", ]
@@ -147,6 +151,40 @@ photos <- photos[order(species,rank)]
 pics <- split(photos, photos$species) #|>
 #lapply(function(i){i[1:min(c(nrow(i),8)), ]})
 
+hccontrib <- rbind(
+  list_hc_contributions("/home/frousseu/Documents/github/flore.quebec/species/Espèces"),
+  list_hc_contributions("/home/frousseu/Documents/github/flore.quebec/keys/clés")
+)
+
+hc <- split(hccontrib, hccontrib$file) |>
+  lapply(function(i){
+    ini <- unlist(strsplit(i$initiated, ", "))
+    edi <- unlist(strsplit(i$edited, ", "))
+    data.frame(species = i$species[1], file = i$file[1], cont = c(rep("initiated", length(ini)), rep("edited", length(edi))), name = c(ini, edi), data = i$date[1])
+  }) |>
+  do.call("rbind", args = _) |>
+  as.data.table()
+
+
+hcc <- list(
+  # nb de changements 
+  data.table(name = character(), nbchanges = integer()), 
+  # nb de commits
+  data.table(name = character(), nbcommits = integer()), 
+  # nb d'espèces initiées
+  hc[grepl("Espèces", file) & cont == "initiated", ][, .(nbspinitiated = .N), by = .(name)], 
+  hc[grepl("_clé.md", file) & cont == "initiated", ][, .(nbkeyinitiated = .N), by = .(name)], 
+  hc[grepl("_taxon.md", file) & cont == "initiated", ][, .(nbtaxoninitiated = .N), by = .(name)],
+  # nb d'espèces modifiées
+  hc[grepl("Espèces", file) & cont == "edited", ][, .(nbspmodified = .N), by = .(name)], 
+  hc[grepl("_clé.md", file) & cont == "edited", ][, .(nbkeymodified = .N), by = .(name)], 
+  hc[grepl("_taxon.md", file) & cont == "edited", ][, .(nbtaxonmodified = .N), by = .(name)]
+)
+x <- Reduce(function(df1, df2) merge(df1, df2, by = "name", all = TRUE), hcc)
+x[is.na(x)] <- 0
+#x <- merge(x, unique(commits[name != "", c("name", "login")]), all.x = TRUE)
+xhc <- x[order(-nbspinitiated, -nbspmodified), ]
+
 
 
 ############################################
@@ -164,46 +202,60 @@ if(any(g)){ # do not count merges for changes or species contributions
 } else {
   z <- x
 }
+zz <- z[!z$file %in% hc$file, ] # remove files were credits are hard coded
 
 xl <- list(
   # nb de changements 
-  z[ , .(nbchanges = sum(changes)), by = .(login)], 
+  z[ , .(nbchanges = sum(changes)), by = .(name)], 
   # nb de commits
-  y[ , .(nbcommits = .N), by = .(login)], 
+  y[ , .(nbcommits = .N), by = .(name)], 
   # nb d'espèces initiées
-  unique(z[repo == "species", ], by = c("species"))[ , .(nbspinitiated = .N), by = .(login)], 
-  unique(z[grepl("_clé.md", file), ], by = c("species"))[ , .(nbkeyinitiated = .N), by = .(login)], 
-  unique(z[grepl("_taxon.md", file), ], by = c("species"))[ , .(nbtaxoninitiated = .N), by = .(login)],
+  unique(zz[repo == "species", ], by = c("species"))[ , .(nbspinitiated = .N), by = .(name)], 
+  unique(zz[grepl("_clé.md", file), ], by = c("species"))[ , .(nbkeyinitiated = .N), by = .(name)], 
+  unique(zz[grepl("_taxon.md", file), ], by = c("species"))[ , .(nbtaxoninitiated = .N), by = .(name)],
   # nb d'espèces modifiées
-  #unique(z[duplicated(z, by = c("species")), ] , by = c("login", "species"))[ , .(nbspmodified = .N), by = .(login)], 
-  z |>
-    unique(by = c("login", "species")) |>
+  #unique(z[duplicated(z, by = c("species")), ] , by = c("name", "species"))[ , .(nbspmodified = .N), by = .(name)], 
+  zz |>
+    unique(by = c("name", "species")) |>
     _[order(species, date), ] |>
     _[duplicated(species), ] |>
-    _[ , .(nbspmodified = .N), by = .(login)],
-  z[grepl("_clé.md", file), ] |>
-    unique(by = c("login", "species")) |>
+    _[ , .(nbspmodified = .N), by = .(name)],
+  zz[grepl("_clé.md", file), ] |>
+    unique(by = c("name", "species")) |>
     _[order(species, date), ] |>
     _[duplicated(species), ] |>
-    _[ , .(nbkeymodified = .N), by = .(login)],
-  z[grepl("_taxon.md", file), ] |>
-    unique(by = c("login", "species")) |>
+    _[ , .(nbkeymodified = .N), by = .(name)],
+  zz[grepl("_taxon.md", file), ] |>
+    unique(by = c("name", "species")) |>
     _[order(species, date), ] |>
     _[duplicated(species), ] |>
-    _[ , .(nbtaxonmodified = .N), by = .(login)] 
+    _[ , .(nbtaxonmodified = .N), by = .(name)] 
 )
-x <- Reduce(function(df1, df2) merge(df1, df2, by = "login", all = TRUE), xl)
+x <- Reduce(function(df1, df2) merge(df1, df2, by = "name", all = TRUE), xl)
 x[is.na(x)] <- 0
-x <- merge(x, unique(commits[name != "", c("login", "name")]), all.x = TRUE)
+#x <- merge(x, unique(commits[name != "", c("login", "name")]), all.x = TRUE)
 x <- x[order(-nbspinitiated, -nbspmodified), ]
 
+x <- rbind(x, xhc)[, lapply(.SD, sum), by = .(name)]
+
+ma <- match(x$name, commits$name)
+x[, login := ifelse(is.na(ma), NA, commits$name[ma])]
+
+
 ### get user photo
-token <- readLines("/home/frousseu/.ssh/github_token")
-x$picurl <- unlist(lapply(x$login, function(i){
-  githubapi <- paste0("https://frousseu:",token,"@api.github.com/users/", i)
-  x <- fromJSON(githubapi)
-  x$avatar_url
-}))
+if(FALSE){
+  token <- readLines("/home/frousseu/.ssh/github_token")
+  x$picurl <- unlist(lapply(x$login, function(i){
+    if(is.na(i)){
+      ""
+    } else {
+      githubapi <- paste0("https://frousseu:", token, "@api.github.com/users/", i)
+      x <- fromJSON(githubapi)
+      x$avatar_url
+    }
+  }))
+}
+
 
 lc <- split(x, x$name)
 lc <-lc[x$name] # keep original ordering
@@ -233,22 +285,40 @@ lc <- lapply(lc, function(i){
 #}
 #image_container(pics$species,pics$url)
 
-#pics<-pics[1:2]
+contrib <- list_hc_contributions("/home/frousseu/Documents/github/flore.quebec/keys/clés")
+
+keycontrib <- list_contributions(commits[grep("_clé.md", file), ])
+hckeycontrib <- contrib[grepl("clé.md", contrib$file),]
+setDT(hckeycontrib)
+keycontrib <- keycontrib[!keycontrib$species %in% hckeycontrib$species, ] |> rbind(hckeycontrib)
+
+taxoncontrib <- list_contributions(commits[grep("_taxon.md", file), ])
+hctaxoncontrib <- contrib[grepl("taxon.md", contrib$file),]
+setDT(hctaxoncontrib)
+taxoncontrib <- taxoncontrib[!taxoncontrib$species %in% hctaxoncontrib$species, ] |> rbind(hctaxoncontrib)
 
 keys <- rbind(
-  list_contributions(commits[grep("_clé.md", file), ]),
-  list_contributions(commits[grep("_taxon.md", file), ])
+  keycontrib,
+  taxoncontrib
 ) |> setDT()
 keys[, taxon := gsub(" clé| taxon", "", species)]
-keys[, file := basename(file)]
-keys <- keys[, .(file, contribution, date)]
+#keys[, file := basename(file)]
+keys <- keys[, .(file, initiated, edited, date)]
+keys <- as.data.frame(keys)
+keys$initiated <- lapply(strsplit(keys$initiated, ", "), I)
+keys$edited <- lapply(strsplit(keys$edited, ", "), I)
+#keys[, initiated := paste0("[\"", gsub("\\, ", "\", \"", initiated),"\"]")]
+#keys[, edited := paste0("[\"", gsub("\\, ", "\", \"", edited),"\"]")]
+
+
+
 
 
 image_array<-function(){
   #cat("/014")
   l<-sapply(pics,function(i){
-    tags<-c("src","alt","famille","genre","section","espèce","fna","inat","vascan","gbif","powo","herbierqc","class","ordre","nobs","vernaculaire","vernacularFRalt","vernacularEN","botanic","alternatif","status","protection","taxonomic_order","LOIEMV","COSEWIC","SARASTATUS","GRANK","NRANK","SRANK","contribution","date","initiated", "'sous-famille'", "'sous-genre'", "tribu", "section", "'sous-tribu'", "série", "'sous-section'")
-    tagnames<-c("url","species","family","genus","section","species","fna","inat","vascan","gbif","powo","herbierqc","class","order","nobs","vernacularFR","vernacularFRalt","vernacularEN","botanic","alternatif","Québec","protection","taxonomic_order","LOIEMV","COSEWIC","SARASTATUS","GRANK","NRANK","SRANK","contribution","date","initiated", "subfamily", "subgenus", "tribe", "section", "subtribe", "series", "subsection")
+    tags<-c("src","alt","famille","genre","section","espèce","fna","inat","vascan","gbif","powo","herbierqc","class","ordre","nobs","vernaculaire","vernacularFRalt","vernacularEN","botanic","alternatif","status","protection","taxonomic_order","LOIEMV","COSEWIC","SARASTATUS","GRANK","NRANK","SRANK","contribution","date", "'sous-famille'", "'sous-genre'", "tribu", "section", "'sous-tribu'", "série", "'sous-section'")
+    tagnames<-c("url","species","family","genus","section","species","fna","inat","vascan","gbif","powo","herbierqc","class","order","nobs","vernacularFR","vernacularFRalt","vernacularEN","botanic","alternatif","Québec","protection","taxonomic_order","LOIEMV","COSEWIC","SARASTATUS","GRANK","NRANK","SRANK","contribution","date", "subfamily", "subgenus", "tribe", "section", "subtribe", "series", "subsection")
     info<-unlist(as.vector(i[1,..tagnames]))
     info<-unname(sapply(info,function(x){paste0("\"",x,"\"")}))
 
@@ -256,6 +326,11 @@ image_array<-function(){
     urls<-paste0("[ \"",paste(urls,collapse="\", \""),"\" ]")
     tags<-c(tags,"images")
     info<-c(info,urls)
+    
+    initiators <- strsplit(i$initiated, ", ")[[1]]
+    initiators <- paste0("[ \"", paste(initiators, collapse = "\", \""), "\" ]")
+    tags <- c(tags, "initiated")
+    info <- c(info, initiators)
     
     editors <- strsplit(i$edited, ", ")[[1]]
     editors <- paste0("[ \"", paste(editors, collapse = "\", \""), "\" ]")
@@ -328,7 +403,7 @@ all_values(d)
 #write("", file= "data.js", append = FALSE)
 image_array()
 write(paste("const contributions = [", paste(lc, collapse = ", ") ,"];"), file = "data.js", append = TRUE)
-write(paste0("const keys = ", toJSON(keys), ";"), file = "data.js", append = TRUE)
+write(paste0("const keys = ", toJSON(keys, auto_unbox = TRUE), ";"), file = "data.js", append = TRUE)
 system("cp /home/frousseu/Documents/github/flore.quebec/data/data.js /home/frousseu/Documents/github/flore.quebec/flore.quebec/data.js")
 #file.show("/home/frousseu/Documents/github/floreqc/flora.html")
 
