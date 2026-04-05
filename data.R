@@ -19,8 +19,8 @@ lf <- list.files("/home/frousseu/Documents/github/flore.quebec/species/Espèces"
         gsub("_", " ", x = _) |>
         gsub(".md", "", x = _)  
 
-setdiff(d$species, lf)
-setdiff(lf, d$species)
+#setdiff(d$species, lf)
+#setdiff(lf, d$species)
 
 ### VASCAN request when updatingS
 # https://data.canadensys.net/vascan/checklist?lang=fr&habit=all&taxon=0&combination=anyof&province=QC&status=native&status=introduced&status=ephemeral&rank=class&rank=order&rank=family&rank=genus&rank=species&nolimit=false&sort=taxonomically&criteria_panel=selection

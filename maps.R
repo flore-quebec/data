@@ -24,7 +24,9 @@ gbif[, origspecies := species]
 
 ###
 
-
+gbif <- gbif[!taxonRank %in% c("FAMILY", "GENUS"), ]
+table(is.na(match(gbif$species, d$`Nom scientifique`)))
+table(gbif$taxonRank)
 
 
 
@@ -142,6 +144,7 @@ region<-st_union(region) |> st_as_sf()
 
 # lakes
 lakes<-ne_download(scale="large",type="lakes",destdir=getwd(),category="physical",returnclass="sf") |> st_transform(32618)
+#ocean<-ne_download(scale="large",type="rivers",destdir=getwd(),category="physical",returnclass="sf") |> st_transform(32618)
 #lakes<-ne_download(scale="large",type="rivers_lake_centerlines",destdir=getwd(),category="physical",returnclass="sf") |> st_transform(32618)
 lakes<-st_filter(lakes,region)
 lakes<-ms_simplify(lakes,0.15)
@@ -158,7 +161,18 @@ buff<-st_sym_difference(st_as_sf(st_as_sfc(st_bbox(st_buffer(region,100000)))),s
 sp<-unique(d$species[d$species%in%gbif$species])
 #sp<-"Anthoxanthum nitens"
 
+### checks
+names(gbif)
+x <- st_drop_geometry(gbif) |> 
+  as.data.table() |>
+  _[, .(n = .N), by = .(phylum, class, order, family, genus, vascan, species, scientificName, verbatimScientificName, other, origspecies, speciesgbif, sp)] |>
+  _[order(phylum, class, order, family, genus, vascan, species, scientificName, verbatimScientificName, other, origspecies, speciesgbif, sp, -n)] |>
+  _[, .(vascan, species, scientificName, verbatimScientificName, other, origspecies, speciesgbif, sp, n)] |> 
+  split(x = _, by = c("vascan"))
 
+
+#View(x)
+# st_read("https://flore-quebec.nyc3.cdn.digitaloceanspaces.com/Viola_affinis.pmtiles")
 
 cl<-makeCluster(8)
 registerDoParallel(cl)

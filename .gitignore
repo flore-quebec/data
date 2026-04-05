@@ -5,4 +5,5 @@
 
 # Don't ignore .R files
 !*.R
+!*.md
 .Rproj.user

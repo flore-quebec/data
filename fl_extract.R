@@ -1,6 +1,7 @@
 
 
 library(pdftools)
+library(tesseract)
 
 #fl <- pdf_ocr_text("/home/frousseu/Downloads/fl.pdf", pages = 406)
 fl <- pdf_fonts("/home/frousseu/Downloads/fl.pdf")
